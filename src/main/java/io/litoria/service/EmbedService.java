@@ -4,7 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,14 +22,29 @@ public class EmbedService {
 
     private static final Pattern CSS_RULE_PATTERN = Pattern.compile(
             "([^{}]+)\\{([^}]+)}", Pattern.MULTILINE);
+    private static final Pattern AT_RULE_BLOCK = Pattern.compile(
+            "(@[^{}]+\\{[^}]*})", Pattern.MULTILINE);
+    private static final Pattern AT_RULE_SINGLE = Pattern.compile(
+            "(@[^{;]+;)");
 
     public void embedStylesAndImages(String inputFile, String outputFile, String sourceDir, String imageDir)
             throws IOException {
         Document doc = Jsoup.parse(new File(inputFile), "UTF-8");
         Path inputDir = Path.of(inputFile).getParent();
 
-        embedCssFromLinkedStylesheets(doc, inputDir);
-        embedCssFromStyleBlocks(doc);
+        List<String> retainedRules = new ArrayList<>();
+
+        embedCssFromLinkedStylesheets(doc, inputDir, retainedRules);
+        embedCssFromStyleBlocks(doc, retainedRules);
+
+        if (!retainedRules.isEmpty()) {
+            Element head = doc.head();
+            Element style = head.appendElement("style");
+            style.text(String.join("\n", retainedRules));
+        }
+
+        fixFontAwesomeIcons(doc);
+
         embedImagesAsBase64(doc, inputDir,
                 sourceDir != null ? Path.of(sourceDir) : null,
                 imageDir != null ? Path.of(imageDir) : null);
@@ -35,7 +52,8 @@ public class EmbedService {
         Files.writeString(Path.of(outputFile), doc.html());
     }
 
-    private void embedCssFromLinkedStylesheets(Document doc, Path baseDir) throws IOException {
+    private void embedCssFromLinkedStylesheets(Document doc, Path baseDir, List<String> retainedRules)
+            throws IOException {
         Elements links = doc.select("link[rel=stylesheet]");
         for (Element link : links) {
             String href = link.attr("href");
@@ -45,25 +63,35 @@ public class EmbedService {
             Path cssPath = baseDir.resolve(href);
             if (Files.exists(cssPath)) {
                 String css = Files.readString(cssPath);
-                applyCssRules(doc, css);
+                applyCssRules(doc, css, retainedRules);
                 link.remove();
             }
         }
     }
 
-    private void embedCssFromStyleBlocks(Document doc) {
+    private void embedCssFromStyleBlocks(Document doc, List<String> retainedRules) {
         Elements styles = doc.select("style");
         for (Element style : styles) {
             String css = style.html();
-            applyCssRules(doc, css);
+            applyCssRules(doc, css, retainedRules);
             style.remove();
         }
     }
 
-    private void applyCssRules(Document doc, String css) {
+    private void applyCssRules(Document doc, String css, List<String> retainedRules) {
         css = css.replaceAll("/\\*.*?\\*/", "");
-        css = css.replaceAll("@[^{}]+\\{[^}]*}", "");
-        css = css.replaceAll("@[^{;]+;", "");
+
+        Matcher atBlock = AT_RULE_BLOCK.matcher(css);
+        while (atBlock.find()) {
+            retainedRules.add(atBlock.group(1));
+        }
+        css = AT_RULE_BLOCK.matcher(css).replaceAll("");
+
+        Matcher atSingle = AT_RULE_SINGLE.matcher(css);
+        while (atSingle.find()) {
+            retainedRules.add(atSingle.group(1));
+        }
+        css = AT_RULE_SINGLE.matcher(css).replaceAll("");
 
         Matcher matcher = CSS_RULE_PATTERN.matcher(css);
         while (matcher.find()) {
@@ -71,6 +99,7 @@ public class EmbedService {
             String declarations = matcher.group(2).trim();
 
             if (selector.contains(":") || selector.contains("@")) {
+                retainedRules.add(selector + " { " + declarations + " }");
                 continue;
             }
 
@@ -92,6 +121,15 @@ public class EmbedService {
                 } catch (Exception ignored) {
                 }
             }
+        }
+    }
+
+    private void fixFontAwesomeIcons(Document doc) {
+        Elements faIcons = doc.select("i.fa");
+        for (Element icon : faIcons) {
+            String style = icon.attr("style")
+                    .replaceAll("font-style:\\s*italic\\s*;?", "");
+            icon.attr("style", style + "; font-style: normal");
         }
     }
 

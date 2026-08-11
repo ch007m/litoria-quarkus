@@ -14,6 +14,7 @@ asciidoctor:
     stylesheet: 'foundation.css'
     stylesdir: 'css'
     nofooter: 'yes'
+    icons: 'font'
   options:
     doctype: 'article'
     safe: 'unsafe'
