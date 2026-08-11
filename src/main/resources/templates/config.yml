@@ -1,0 +1,49 @@
+generator:
+  source: "./source" # directory path or name of the file to be processed
+  destination: "generated"
+  image: "${source}/image" # path to the images directory used to resolve and embed images during generation
+
+  metadata:
+    author: "First & Last Name"
+    email: "user@domain"
+    # date is auto-filled with today's date if not set
+
+asciidoctor:
+  attributes:
+    showtitle: ''
+    stylesheet: 'foundation.css'
+    stylesdir: 'css'
+    nofooter: 'yes'
+  options:
+    doctype: 'article'
+    safe: 'unsafe'
+
+pdf:
+  format: A4
+  orientation: portrait
+  zoomFactor: "0.55"
+  border:
+    top: 20px
+    right: 15px
+    bottom: 20px
+    left: 15px
+
+# SMTP configuration (used by the 'send' command)
+# smtp:
+#   host: "smtp.gmail.com"
+#   port: 587
+#   secure: false
+#   requireTLS: true
+#   tls:
+#     rejectUnauthorized: false
+#   logger: true
+#   debug: false
+#   user: "your-email@gmail.com"
+#   pass: "your-app-password"
+
+# Mail configuration (used by the 'send' command)
+# mail:
+#   from: "user@domain"
+#   to: "user@domain"
+#   subject: "{author}'s weekly report : {date}"
+#   signature: "Cheers{break}----{break}{author}{break}YOUR_TITLE"

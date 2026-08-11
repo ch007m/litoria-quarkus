@@ -1,0 +1,25 @@
+[cols="10,90",weight="80%"]
+|===
+|image:image/quarkus-logo.png["Quarkus",200]
+<|{author}'s weekly report : {date} {break} {email}
+|===
+
+== What was done last week
+.Quarkus & AI
+
+** Blabla.
+* Blabla.
+** Blabla.
+
+.Another Topic
+
+* Blabla
+** Blabla.
+
+NOTE: This is a note.
+
+== Plans for this week
+
+* Blabla.
+** Blabla.
+* Blabla.
