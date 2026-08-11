@@ -1,7 +1,7 @@
 [cols="10,90",weight="80%"]
 |===
 |image:image/quarkus-logo.png["Quarkus",200]
-<|{author}'s weekly report : {date} {break} {email}
+<|{author}'s weekly report - {date}
 |===
 
 == What was done last week
