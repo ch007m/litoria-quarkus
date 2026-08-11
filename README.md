@@ -47,6 +47,7 @@ litoria init -t report /tmp/my-report
 litoria generate /tmp/my-report
 litoria generate --embed /tmp/my-report
 litoria send /tmp/my-report
+litoria send -f minute /tmp/my-report
 ```
 
 To uninstall:
@@ -70,9 +71,8 @@ All project settings are defined in a single `config.yml` file using the followi
 ```yaml
 generator:
   source: "./source"
-  destination: "./target/litoria"
+  destination: "generated"
   image: "${source}/image"
-  embed_suffix: "-embedded"
 
   metadata:
     author: "First & Last Name"
@@ -101,7 +101,6 @@ Create a project containing a default `config.yml` and AsciiDoc template(s):
 ```shell
 litoria init /path/to/project
 litoria init -t report /path/to/project
-litoria init                          # uses current directory
 ```
 
 Several project types are supported via the `-t` option (default: `simple`):
@@ -118,7 +117,7 @@ litoria init -f /path/to/project
 
 ### generate
 
-Render the AsciiDoc file(s) in the `source` directory into HTML. Each run creates a timestamped subfolder under the destination directory (e.g., `./target/litoria/11-08_14-30`):
+Render the AsciiDoc file(s) in the `source` directory into HTML. Each run creates a timestamped subfolder under the destination directory (e.g., `generated/2026-08-11_14-30`):
 
 ```shell
 litoria generate                      # uses current directory
@@ -144,7 +143,7 @@ litoria generate --embed
 litoria generate -e -c config.yml
 ```
 
-The `--embed` option creates a copy of each generated HTML file with the configured `embed_suffix` (default: `-embedded`). It moves CSS from linked stylesheets and `<style>` blocks into inline `style` attributes, and converts image references to embedded base64 data URIs — useful for email-ready HTML.
+The `--embed` option inlines CSS from linked stylesheets and `<style>` blocks into `style` attributes, converts image references to embedded base64 data URIs, and embeds Font Awesome icons (downloading the woff2 font from CDN and encoding it as base64) — producing fully self-contained, email-ready HTML that renders correctly without any network access.
 
 ### send
 
@@ -152,11 +151,16 @@ Send the generated HTML content as an email via SMTP:
 
 ```shell
 litoria send ./report/quarkus
+litoria send -f minute ./report/quarkus
 ```
 
-The `send` command automatically finds the latest timestamped subfolder and looks for an embedded HTML file to use as the email body. Run `generate --embed` before sending.
+Use `-f` / `--file` to specify which HTML file to send (without the `.html` extension). Defaults to `report`.
 
-Configure the `smtp` and `mail` sections in your `config.yml`:
+The `send` command automatically finds the latest timestamped subfolder and looks for the specified HTML file to use as the email body. Run `generate --embed` before sending.
+
+Configure the `smtp` and `mail` sections in your `config.yml`. Two authentication methods are supported:
+
+**App Password:**
 
 ```yaml
 smtp:
@@ -165,13 +169,27 @@ smtp:
   secure: false
   requireTLS: true
   user: "your-email@gmail.com"
-  # For App Password auth:
   pass: "your-app-password"
-  # For OAuth2 auth (remove pass and use these instead):
-  # clientId: "your-client-id"
-  # clientSecret: "your-client-secret"
-  # refreshToken: "your-refresh-token"
+```
 
+**OAuth2:**
+
+```yaml
+smtp:
+  host: "smtp.gmail.com"
+  port: 587
+  secure: false
+  requireTLS: true
+  user: "your-email@gmail.com"
+  oauth2:
+    clientId: "your-client-id"
+    clientSecret: "your-client-secret"
+    refreshToken: "your-refresh-token"
+```
+
+**Mail section:**
+
+```yaml
 mail:
   from: "your-email@gmail.com"
   to: "recipient@domain.com"
@@ -191,10 +209,15 @@ Template placeholders (`{author}`, `{email}`, `{date}`, `{break}`) are resolved 
 | requireTLS       | Force STARTTLS upgrade                          |          |
 | tls              | TLS options (e.g., `rejectUnauthorized: false`)  |          |
 | user             | Email account username                          |    x     |
-| pass             | App Password (for App Password auth)            |          |
-| clientId         | OAuth2 Client ID (for OAuth2 auth)              |          |
-| clientSecret     | OAuth2 Client Secret (for OAuth2 auth)          |          |
-| refreshToken     | OAuth2 Refresh Token (for OAuth2 auth)          |          |
+| pass             | App Password                                    |          |
+
+**smtp.oauth2 fields** (alternative to `pass`):
+
+| Field            | Description                                     | Required |
+|------------------|-------------------------------------------------|:--------:|
+| clientId         | Google OAuth2 Client ID                         |    x     |
+| clientSecret     | Google OAuth2 Client Secret                     |    x     |
+| refreshToken     | Google OAuth2 Refresh Token                     |    x     |
 
 **mail fields:**
 

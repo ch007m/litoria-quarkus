@@ -17,6 +17,11 @@ import io.litoria.service.EmailService;
 @CommandDefinition(name = "send", description = "Send HTML content as email via SMTP")
 public class SendCommand implements Command<CommandInvocation> {
 
+    @Option(shortName = 'f', name = "file",
+            description = "Name of the HTML file to send (without extension)",
+            defaultValue = "report")
+    private String file;
+
     @Option(shortName = 'c', name = "config", description = "Config file to use")
     private String configFile;
 
@@ -36,8 +41,8 @@ public class SendCommand implements Command<CommandInvocation> {
             String cfgPath = configService.resolveConfigFile(resolvedDir, configFile);
             Map<String, Object> config = configService.loadConfig(cfgPath);
 
-            invocation.println("Sending email...");
-            emailService.sendEmail(config, resolvedDir);
+            invocation.println("Sending " + file + ".html ...");
+            emailService.sendEmail(config, resolvedDir, file);
             invocation.println("Email sent successfully.");
             return CommandResult.SUCCESS;
         } catch (Exception e) {
