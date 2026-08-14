@@ -6,6 +6,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -20,6 +23,8 @@ import org.commonmark.node.Node;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
 
+import io.litoria.config.LitoriaConfig;
+
 @ApplicationScoped
 public class MarkdownService {
 
@@ -27,55 +32,60 @@ public class MarkdownService {
     private static final Pattern MD_IMAGE_PATTERN = Pattern.compile("!\\[[^]]*]\\([^)]*\\)\\s*");
 
     @Inject
-    ConfigService configService;
+    LitoriaConfig config;
 
-    public void convertToHtml(Map<String, Object> config, String projectDir) throws IOException {
-        Map<String, Object> generator = configService.getGenerator(config);
+    @Inject
+    FrontmatterService frontmatterService;
 
-        String source = configService.getString(generator, "source");
-        String destination = configService.getString(generator, "destination");
-        if (source == null || destination == null) {
-            throw new IOException("Config must define 'generator.source' and 'generator.destination'");
-        }
+    public Map<String, String> convertToHtml(String projectDir, String destination) throws IOException {
+        String source = config.generator().source();
 
         Path sourcePath = Path.of(projectDir, source);
         Path destPath = Path.of(projectDir, destination);
         Files.createDirectories(destPath);
 
-        Map<String, Object> metadata = configService.getMap(config, "report");
-        if (!metadata.containsKey("date")) {
-            metadata = new java.util.HashMap<>(metadata);
-            metadata.put("date", java.time.LocalDate.now()
-                    .format(java.time.format.DateTimeFormatter.ofPattern("M/d/yyyy")));
-        }
-
-        String css = loadCss(generator, projectDir);
+        String css = loadCss(projectDir);
         List<Extension> extensions = List.of(TablesExtension.create());
         Parser parser = Parser.builder().extensions(extensions).build();
         HtmlRenderer renderer = HtmlRenderer.builder().extensions(extensions).build();
+
+        Map<String, String> lastMetadata = Map.of();
 
         if (Files.isDirectory(sourcePath)) {
             try (Stream<Path> mdFiles = Files.list(sourcePath)
                     .filter(p -> p.toString().endsWith(".md"))) {
                 for (Path mdFile : mdFiles.toList()) {
                     String outputName = getFileNameWithoutExtension(mdFile) + ".html";
-                    convertFile(mdFile, destPath.resolve(outputName), parser, renderer, metadata, css);
+                    lastMetadata = convertFile(mdFile, destPath.resolve(outputName), parser, renderer, css);
                 }
             }
             copyImages(sourcePath, destPath);
         } else if (Files.isRegularFile(sourcePath)) {
             String outputName = getFileNameWithoutExtension(sourcePath) + ".html";
-            convertFile(sourcePath, destPath.resolve(outputName), parser, renderer, metadata, css);
+            lastMetadata = convertFile(sourcePath, destPath.resolve(outputName), parser, renderer, css);
             copyImages(sourcePath.getParent(), destPath);
         } else {
             throw new IOException("Source not found: " + sourcePath);
         }
+
+        return lastMetadata;
     }
 
-    private void convertFile(Path input, Path output, Parser parser, HtmlRenderer renderer,
-            Map<String, Object> metadata, String css) throws IOException {
-        String markdown = Files.readString(input);
-        markdown = resolveMetadata(markdown, metadata);
+    private Map<String, String> convertFile(Path input, Path output, Parser parser, HtmlRenderer renderer,
+            String css) throws IOException {
+        String rawMarkdown = Files.readString(input);
+
+        Map<String, String> metadata = frontmatterService.parseFrontmatter(rawMarkdown);
+        frontmatterService.validateRequired(metadata, "author", "title", "email", "to");
+
+        Map<String, String> resolvedMetadata = new HashMap<>(metadata);
+        if (!resolvedMetadata.containsKey("date")) {
+            resolvedMetadata.put("date", LocalDate.now()
+                    .format(DateTimeFormatter.ofPattern("M/d/yyyy")));
+        }
+
+        String markdown = frontmatterService.stripFrontmatter(rawMarkdown);
+        markdown = resolveMetadata(markdown, resolvedMetadata);
 
         Node document = parser.parse(markdown);
         String bodyHtml = renderer.render(document);
@@ -83,12 +93,13 @@ public class MarkdownService {
         String title = extractTitle(markdown);
         String fullHtml = wrapInHtmlDocument(bodyHtml, title, css);
         Files.writeString(output, fullHtml);
+
+        return resolvedMetadata;
     }
 
-    private String loadCss(Map<String, Object> generator, String projectDir) throws IOException {
-        String cssPath = configService.getString(generator, "css");
-        if (cssPath != null) {
-            Path externalCss = Path.of(projectDir, cssPath);
+    private String loadCss(String projectDir) throws IOException {
+        if (config.generator().css().isPresent()) {
+            Path externalCss = Path.of(projectDir, config.generator().css().get());
             if (Files.exists(externalCss)) {
                 return Files.readString(externalCss);
             }
@@ -102,9 +113,9 @@ public class MarkdownService {
         }
     }
 
-    private String resolveMetadata(String text, Map<String, Object> metadata) {
-        for (Map.Entry<String, Object> entry : metadata.entrySet()) {
-            String value = entry.getValue() != null ? entry.getValue().toString() : "";
+    private String resolveMetadata(String text, Map<String, String> metadata) {
+        for (Map.Entry<String, String> entry : metadata.entrySet()) {
+            String value = entry.getValue() != null ? entry.getValue() : "";
             text = text.replace("{" + entry.getKey() + "}", value);
         }
         return text;

@@ -1,23 +1,16 @@
-<!--
+---
+author: # your First & Last Name
+title:  # your company title
+email:  # your email address used to generate the report and to define the "from" within the email
+to:     # recipient email address
+subject: "{author}'s weekly report : {date}"
+signature: |
+  Cheers
+  ----
+  {author}
+  {title}
+---
 
-  The {...} fields must be configured within the config.yaml file
-  under the "report:" field for the data used to generate the report
-  
-  The report supports to include:
-  
-  1. Table
-
-    | Header 1 | Header 2 |
-    |----------|----------|
-    | Cell 1 | Cell 2|
-  
-  2. Image/picture 
-    
-     ![icon](https://jdecked.github.io/twemoji/v/latest/svg/1f31e.svg)
-
-     or copy/paste en emaoji from: https://jdecked.github.io/twemoji/v/latest/preview-svg.html
-
--->
 # ![Quarkus](image/quarkus-logo.png) {author}'s report: {date}
 
 ## What was done last week ☀️🌞

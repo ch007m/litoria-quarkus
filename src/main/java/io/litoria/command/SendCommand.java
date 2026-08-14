@@ -1,6 +1,10 @@
 package io.litoria.command;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.aesh.command.Command;
 import org.aesh.command.CommandDefinition;
@@ -11,8 +15,9 @@ import org.aesh.command.option.Option;
 
 import jakarta.inject.Inject;
 
-import io.litoria.service.ConfigService;
+import io.litoria.config.LitoriaConfig;
 import io.litoria.service.EmailService;
+import io.litoria.service.FrontmatterService;
 
 @CommandDefinition(name = "send", description = "Send HTML content as email via SMTP")
 public class SendCommand implements Command<CommandInvocation> {
@@ -22,9 +27,6 @@ public class SendCommand implements Command<CommandInvocation> {
             defaultValue = "report")
     private String file;
 
-    @Option(shortName = 'c', name = "config", description = "Config file to use")
-    private String configFile;
-
     @Argument(description = "Project directory path")
     private String projectDir;
 
@@ -32,23 +34,60 @@ public class SendCommand implements Command<CommandInvocation> {
     EmailService emailService;
 
     @Inject
-    ConfigService configService;
+    LitoriaConfig config;
+
+    @Inject
+    FrontmatterService frontmatterService;
 
     @Override
     public CommandResult execute(CommandInvocation invocation) {
         try {
-            String resolvedDir = configService.resolveProjectDir(projectDir);
-            String cfgPath = configService.resolveConfigFile(resolvedDir, configFile);
-            Map<String, Object> config = configService.loadConfig(cfgPath);
+            String resolvedDir = resolveProjectDir(projectDir);
 
-            String resolvedFile = emailService.resolveHtmlFile(config, resolvedDir, file);
+            Map<String, String> metadata = loadMetadata(resolvedDir);
+
+            String resolvedFile = emailService.resolveHtmlFile(resolvedDir, file);
             invocation.println("Sending " + resolvedFile + " ...");
-            emailService.sendEmail(config, resolvedDir, file);
+            emailService.sendEmail(resolvedDir, file, metadata);
             invocation.println("Email sent successfully.");
             return CommandResult.SUCCESS;
         } catch (Exception e) {
             invocation.println("Error: " + e.getMessage());
             return CommandResult.FAILURE;
+        }
+    }
+
+    private String resolveProjectDir(String argument) {
+        if (argument != null && !argument.isBlank()) {
+            return Path.of(argument).toAbsolutePath().toString();
+        }
+        return Path.of("").toAbsolutePath().toString();
+    }
+
+    private Map<String, String> loadMetadata(String projectDir) throws Exception {
+        String engine = config.generator().engine();
+        if ("markdown".equalsIgnoreCase(engine)) {
+            Path sourceDir = Path.of(projectDir, config.generator().source());
+            Path mdFile = findMarkdownFile(sourceDir);
+            if (mdFile != null) {
+                return frontmatterService.parseFrontmatter(mdFile);
+            }
+        }
+        Map<String, String> metadata = new HashMap<>();
+        config.report().author().ifPresent(v -> metadata.put("author", v));
+        config.report().title().ifPresent(v -> metadata.put("title", v));
+        config.report().email().ifPresent(v -> metadata.put("email", v));
+        config.report().mail().to().ifPresent(v -> metadata.put("to", v));
+        return metadata;
+    }
+
+    private Path findMarkdownFile(Path sourceDir) throws Exception {
+        if (!Files.isDirectory(sourceDir)) {
+            return null;
+        }
+        try (Stream<Path> files = Files.list(sourceDir)
+                .filter(p -> p.toString().endsWith(".md"))) {
+            return files.findFirst().orElse(null);
         }
     }
 }

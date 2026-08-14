@@ -6,7 +6,6 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 
 import org.aesh.command.Command;
@@ -18,8 +17,8 @@ import org.aesh.command.option.Option;
 
 import jakarta.inject.Inject;
 
+import io.litoria.config.LitoriaConfig;
 import io.litoria.service.AsciidocService;
-import io.litoria.service.ConfigService;
 import io.litoria.service.EmbedService;
 import io.litoria.service.MarkdownService;
 
@@ -39,9 +38,6 @@ public class GenerateCommand implements Command<CommandInvocation> {
             hasValue = false)
     private boolean embed;
 
-    @Option(shortName = 'c', name = "config", description = "Config file to use")
-    private String configFile;
-
     @Option(shortName = 'd', name = "dest",
             description = "Custom destination directory (overrides config, no timestamp subfolder)")
     private String dest;
@@ -56,7 +52,7 @@ public class GenerateCommand implements Command<CommandInvocation> {
     MarkdownService markdownService;
 
     @Inject
-    ConfigService configService;
+    LitoriaConfig config;
 
     @Inject
     EmbedService embedService;
@@ -64,28 +60,23 @@ public class GenerateCommand implements Command<CommandInvocation> {
     @Override
     public CommandResult execute(CommandInvocation invocation) {
         try {
-            String resolvedDir = configService.resolveProjectDir(projectDir);
-            String cfgPath = configService.resolveConfigFile(resolvedDir, configFile);
-            Map<String, Object> config = configService.loadConfig(cfgPath);
-            Map<String, Object> generator = configService.getGenerator(config);
-
-            String resolvedDest = resolveDestination(generator);
-            generator.put("destination", resolvedDest);
+            String resolvedDir = resolveProjectDir(projectDir);
+            String resolvedDest = resolveDestination();
 
             if ("pdf".equalsIgnoreCase(rendering)) {
                 invocation.println("PDF rendering is not yet supported. Use '-r html' for now.");
                 return CommandResult.FAILURE;
             }
 
-            String engine = configService.getString(generator, "engine");
+            String engine = config.generator().engine();
             boolean isMarkdown = "markdown".equalsIgnoreCase(engine);
 
             if (isMarkdown) {
                 invocation.println("Generating HTML from Markdown files...");
-                markdownService.convertToHtml(config, resolvedDir);
+                markdownService.convertToHtml(resolvedDir, resolvedDest);
             } else {
                 invocation.println("Generating HTML from AsciiDoc files...");
-                asciidocService.convertToHtml(config, resolvedDir);
+                asciidocService.convertToHtml(resolvedDir, resolvedDest);
             }
             invocation.println("HTML generation complete.");
             Path outputDir = Path.of(resolvedDir, resolvedDest).normalize().toAbsolutePath();
@@ -93,19 +84,14 @@ public class GenerateCommand implements Command<CommandInvocation> {
             listHtmlLinks(invocation, outputDir);
 
             if (embed) {
-
-                Path destPath = Path.of(resolvedDir, resolvedDest);
-                String sourceDir = configService.getString(generator, "source");
-                String resolvedSourceDir = sourceDir != null
-                        ? Path.of(resolvedDir, sourceDir).toString()
-                        : null;
-                String imageDir = configService.getString(generator, "image");
-                String resolvedImageDir = imageDir != null
-                        ? Path.of(resolvedDir, imageDir).toString()
-                        : null;
+                String sourceDir = config.generator().source();
+                String resolvedSourceDir = Path.of(resolvedDir, sourceDir).toString();
+                String resolvedImageDir = config.generator().image()
+                        .map(img -> Path.of(resolvedDir, img).toString())
+                        .orElse(null);
 
                 invocation.println("Embedding styles and images...");
-                int count = embedHtmlFiles(destPath, resolvedSourceDir, resolvedImageDir);
+                int count = embedHtmlFiles(Path.of(resolvedDir, resolvedDest), resolvedSourceDir, resolvedImageDir);
                 invocation.println(count + " embedded file(s) saved.");
             }
 
@@ -116,11 +102,18 @@ public class GenerateCommand implements Command<CommandInvocation> {
         }
     }
 
-    private String resolveDestination(Map<String, Object> generator) {
+    private String resolveProjectDir(String argument) {
+        if (argument != null && !argument.isBlank()) {
+            return Path.of(argument).toAbsolutePath().toString();
+        }
+        return Path.of("").toAbsolutePath().toString();
+    }
+
+    private String resolveDestination() {
         if (dest != null && !dest.isBlank()) {
             return dest;
         }
-        String baseDest = configService.getString(generator, "destination");
+        String baseDest = config.generator().destination();
         if (baseDest == null || baseDest.isBlank()) {
             baseDest = "generated";
         }

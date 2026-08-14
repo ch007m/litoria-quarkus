@@ -4,6 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -16,49 +19,36 @@ import org.asciidoctor.AttributesBuilder;
 import org.asciidoctor.Options;
 import org.asciidoctor.SafeMode;
 
+import io.litoria.config.LitoriaConfig;
+
 @ApplicationScoped
 public class AsciidocService {
 
     @Inject
-    ConfigService configService;
+    LitoriaConfig config;
 
-    public void convertToHtml(Map<String, Object> config, String projectDir) throws IOException {
-        Map<String, Object> generator = configService.getGenerator(config);
-
-        String source = configService.getString(generator, "source");
-        String destination = configService.getString(generator, "destination");
-        if (source == null || destination == null) {
-            throw new IOException("Config must define 'generator.source' and 'generator.destination'");
-        }
+    public void convertToHtml(String projectDir, String destination) throws IOException {
+        String source = config.generator().source();
 
         Path sourcePath = Path.of(projectDir, source);
         Path destPath = Path.of(projectDir, destination);
         Files.createDirectories(destPath);
 
-        Map<String, Object> asciidoctorConfig = configService.getMap(config, "asciidoctor");
-        Map<String, Object> attrsMap = new java.util.HashMap<>(configService.getMap(asciidoctorConfig, "attributes"));
+        Map<String, String> attrsMap = new HashMap<>(config.asciidoctor().attributes());
 
-        Map<String, Object> metadata = configService.getMap(config, "report");
-        if (!metadata.containsKey("date")) {
-            metadata = new java.util.HashMap<>(metadata);
-            metadata.put("date", java.time.LocalDate.now()
-                    .format(java.time.format.DateTimeFormatter.ofPattern("M/d/yyyy")));
-        }
-        for (Map.Entry<String, Object> entry : metadata.entrySet()) {
-            if (entry.getValue() != null) {
-                attrsMap.put(entry.getKey(), entry.getValue().toString());
-            }
+        Map<String, String> metadata = buildMetadataFromConfig();
+        for (Map.Entry<String, String> entry : metadata.entrySet()) {
+            attrsMap.put(entry.getKey(), entry.getValue());
         }
         attrsMap.put("break", "<br/>");
 
-        String imageDir = configService.getString(generator, "image");
-        if (imageDir != null && !imageDir.isBlank()) {
-            attrsMap.put("imagesdir", Path.of(projectDir, imageDir).toAbsolutePath().toString());
-        }
+        config.generator().image().ifPresent(imageDir ->
+                attrsMap.put("imagesdir", Path.of(projectDir, imageDir).toAbsolutePath().toString()));
+
         Attributes attrs = buildAttributes(attrsMap);
-        Map<String, Object> optionsMap = configService.getMap(asciidoctorConfig, "options");
-        String doctype = optionsMap.getOrDefault("doctype", "article").toString();
-        SafeMode safe = parseSafeMode(optionsMap.getOrDefault("safe", "unsafe").toString());
+        Map<String, String> optionsMap = config.asciidoctor().options();
+        String doctype = optionsMap.getOrDefault("doctype", "article");
+        SafeMode safe = parseSafeMode(optionsMap.getOrDefault("safe", "unsafe"));
 
         try (Asciidoctor asciidoctor = Asciidoctor.Factory.create()) {
             if (Files.isDirectory(sourcePath)) {
@@ -92,11 +82,22 @@ public class AsciidocService {
         }
     }
 
-    private Attributes buildAttributes(Map<String, Object> attrsMap) {
+    private Map<String, String> buildMetadataFromConfig() {
+        Map<String, String> metadata = new HashMap<>();
+        config.report().author().ifPresent(v -> metadata.put("author", v));
+        config.report().title().ifPresent(v -> metadata.put("title", v));
+        config.report().email().ifPresent(v -> metadata.put("email", v));
+        if (!metadata.containsKey("date")) {
+            metadata.put("date", LocalDate.now()
+                    .format(DateTimeFormatter.ofPattern("M/d/yyyy")));
+        }
+        return metadata;
+    }
+
+    private Attributes buildAttributes(Map<String, String> attrsMap) {
         AttributesBuilder builder = Attributes.builder();
-        for (Map.Entry<String, Object> entry : attrsMap.entrySet()) {
-            String value = entry.getValue() != null ? entry.getValue().toString() : "";
-            builder.attribute(entry.getKey(), value);
+        for (Map.Entry<String, String> entry : attrsMap.entrySet()) {
+            builder.attribute(entry.getKey(), entry.getValue() != null ? entry.getValue() : "");
         }
         return builder.build();
     }

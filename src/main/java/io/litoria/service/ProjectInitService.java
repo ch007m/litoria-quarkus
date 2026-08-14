@@ -50,9 +50,6 @@ public class ProjectInitService {
 
         String engineBase = markdown ? MARKDOWN_BASE : ASCIIDOCTOR_BASE;
 
-        copyResource(engineBase + "config.yml",
-                projectDir.resolve("config.yml"));
-
         List<String> templates = getTemplatesForType(type, markdown);
         for (String template : templates) {
             copyResource(engineBase + template,
@@ -60,7 +57,6 @@ public class ProjectInitService {
         }
 
         Files.createDirectories(projectDir.resolve("source/css"));
-
         Files.createDirectories(projectDir.resolve("source/image"));
 
         if (markdown) {

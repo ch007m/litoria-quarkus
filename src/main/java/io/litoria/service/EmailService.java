@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -32,61 +33,76 @@ import jakarta.mail.internet.MimeMessage;
 import jakarta.mail.internet.MimeMultipart;
 import jakarta.mail.util.ByteArrayDataSource;
 
+import io.litoria.config.LitoriaConfig;
+
 @ApplicationScoped
 public class EmailService {
+
+    private static final org.jboss.logging.Logger LOG = org.jboss.logging.Logger.getLogger(EmailService.class);
 
     private static final String GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
     private static final Pattern ACCESS_TOKEN_PATTERN = Pattern.compile(
             "\"access_token\"\\s*:\\s*\"([^\"]+)\"");
 
     @Inject
-    ConfigService configService;
+    LitoriaConfig config;
 
-    @SuppressWarnings("unchecked")
-    public void sendEmail(Map<String, Object> config, String projectDir, String fileName) throws MessagingException, IOException {
-        Map<String, Object> generator = configService.getGenerator(config);
-        Map<String, Object> smtpConfig = configService.getMap(config, "smtp");
-        Map<String, Object> reportConfig = configService.getMap(config, "report");
-        Map<String, Object> mailConfig = configService.getMap(reportConfig, "mail");
+    public void sendEmail(String projectDir, String fileName, Map<String, String> metadata)
+            throws MessagingException, IOException {
+        LitoriaConfig.SmtpConfig smtpConfig = config.smtp();
 
-        if (smtpConfig.isEmpty()) {
+        LOG.debugf("SMTP host: %s", smtpConfig.host());
+        LOG.debugf("SMTP port: %d", smtpConfig.port());
+        LOG.debugf("SMTP user: %s", smtpConfig.user().orElse("<not set>"));
+        LOG.debugf("SMTP pass: %s", smtpConfig.pass().map(p -> p.isBlank() ? "<blank>" : "****").orElse("<not set>"));
+        LOG.debugf("SMTP secure: %s", smtpConfig.secure());
+        LOG.debugf("SMTP requireTls: %s", smtpConfig.requireTls());
+        LOG.debugf("SMTP tls.rejectUnauthorized: %s", smtpConfig.tls().rejectUnauthorized());
+        LOG.debugf("SMTP oauth2.clientId: %s", smtpConfig.oauth2().clientId().map(v -> v.isBlank() ? "<blank>" : "****").orElse("<not set>"));
+        LOG.debugf("SMTP oauth2.clientSecret: %s", smtpConfig.oauth2().clientSecret().map(v -> v.isBlank() ? "<blank>" : "****").orElse("<not set>"));
+        LOG.debugf("SMTP oauth2.refreshToken: %s", smtpConfig.oauth2().refreshToken().map(v -> v.isBlank() ? "<blank>" : "****").orElse("<not set>"));
+        LOG.debugf("OAuth2 detected: %s", isOAuth2(smtpConfig));
+
+        if (smtpConfig.user().isEmpty() || smtpConfig.user().get().isBlank()) {
             throw new MessagingException(
-                    "No 'smtp' section defined in the config file. The send command requires a report project type.");
+                    "SMTP user not configured. Set the LITORIA_SMTP_USER environment variable.");
         }
 
         Properties props = buildSmtpProperties(smtpConfig);
         Session session = createSession(props, smtpConfig);
 
-        Map<String, Object> metadata = new java.util.HashMap<>(reportConfig);
-        metadata.remove("mail");
-
-        if (!metadata.containsKey("date")) {
-            metadata.put("date", LocalDate.now().format(DateTimeFormatter.ofPattern("M/d/yyyy")));
+        Map<String, String> resolvedMetadata = new HashMap<>(metadata);
+        if (!resolvedMetadata.containsKey("date")) {
+            resolvedMetadata.put("date", LocalDate.now().format(DateTimeFormatter.ofPattern("M/d/yyyy")));
         }
 
-        String subject = resolveTemplate(getString(mailConfig, "subject"), metadata);
-        String from = resolveTemplate(getString(mailConfig, "from"), metadata);
-        String to = resolveTemplate(getString(mailConfig, "to"), metadata);
+        String subjectTemplate = resolvedMetadata.getOrDefault("subject",
+                config.report().mail().subject().orElse("{author}'s weekly report : {date}"));
+        String subject = resolveTemplate(subjectTemplate, resolvedMetadata);
+        String from = resolveTemplate(config.report().mail().from(), resolvedMetadata);
+        String to = config.report().mail().to()
+                .map(t -> resolveTemplate(t, resolvedMetadata))
+                .orElse(resolvedMetadata.getOrDefault("to", ""));
+
+        if (to.isBlank()) {
+            throw new MessagingException("Recipient 'to' address not configured. "
+                    + "Set it in frontmatter or application.properties (litoria.report.mail.to).");
+        }
 
         String htmlBody;
-        if (mailConfig.containsKey("body") && mailConfig.get("body") != null) {
-            htmlBody = resolveTemplate(mailConfig.get("body").toString(), metadata);
+        Path embeddedFile = findHtmlFile(projectDir, fileName);
+        if (embeddedFile != null && Files.exists(embeddedFile)) {
+            htmlBody = resolveTemplate(Files.readString(embeddedFile), resolvedMetadata);
         } else {
-            Path embeddedFile = findHtmlFile(generator, projectDir, fileName);
-            if (embeddedFile != null && Files.exists(embeddedFile)) {
-                htmlBody = resolveTemplate(Files.readString(embeddedFile), metadata);
-            } else {
-                throw new IOException("No embedded file found in the destination directory."
-                        + " Run 'generate --embed' first.");
-            }
+            throw new IOException("No embedded file found in the destination directory."
+                    + " Run 'generate --embed' first.");
         }
 
-        String signature = configService.getString(reportConfig, "signature");
-        if (signature != null) {
-            String sig = resolveTemplate(signature, metadata);
-            sig = sig.replace("\n", "<br/>");
-            htmlBody += "<br/><hr style=\"border:none;border-top:1px solid #ccc;margin:1em 0\"/>" + sig;
-        }
+        String signatureTemplate = resolvedMetadata.getOrDefault("signature",
+                config.report().signature());
+        String signature = resolveTemplate(signatureTemplate, resolvedMetadata);
+        signature = signature.replace("\n", "<br/>");
+        htmlBody += "<br/><hr style=\"border:none;border-top:1px solid #ccc;margin:1em 0\"/>" + signature;
 
         MimeMessage message = new MimeMessage(session);
         message.setFrom(new InternetAddress(from));
@@ -117,34 +133,37 @@ public class EmailService {
         Transport.send(message);
     }
 
-    private boolean isOAuth2(Map<String, Object> smtpConfig) {
-        Map<String, Object> oauth2 = configService.getMap(smtpConfig, "oauth2");
-        return oauth2.containsKey("clientId")
-                && oauth2.containsKey("clientSecret")
-                && oauth2.containsKey("refreshToken");
+    public String resolveHtmlFile(String projectDir, String fileName) {
+        try {
+            Path path = findHtmlFile(projectDir, fileName);
+            return path != null ? path.toString() : fileName + ".html";
+        } catch (IOException e) {
+            return fileName + ".html";
+        }
     }
 
-    private Properties buildSmtpProperties(Map<String, Object> smtpConfig) {
-        Properties props = new Properties();
-        props.put("mail.smtp.host", smtpConfig.getOrDefault("host", "localhost").toString());
-        props.put("mail.smtp.port", smtpConfig.getOrDefault("port", 587).toString());
+    private boolean isOAuth2(LitoriaConfig.SmtpConfig smtpConfig) {
+        LitoriaConfig.SmtpConfig.Oauth2Config oauth2 = smtpConfig.oauth2();
+        return oauth2.clientId().isPresent() && !oauth2.clientId().get().isBlank()
+                && oauth2.clientSecret().isPresent() && !oauth2.clientSecret().get().isBlank()
+                && oauth2.refreshToken().isPresent() && !oauth2.refreshToken().get().isBlank();
+    }
 
-        boolean secure = Boolean.parseBoolean(smtpConfig.getOrDefault("secure", false).toString());
-        if (secure) {
+    private Properties buildSmtpProperties(LitoriaConfig.SmtpConfig smtpConfig) {
+        Properties props = new Properties();
+        props.put("mail.smtp.host", smtpConfig.host());
+        props.put("mail.smtp.port", String.valueOf(smtpConfig.port()));
+
+        if (smtpConfig.secure()) {
             props.put("mail.smtp.ssl.enable", "true");
         }
 
-        boolean requireTLS = Boolean.parseBoolean(smtpConfig.getOrDefault("requireTLS", false).toString());
-        if (requireTLS) {
+        if (smtpConfig.requireTls()) {
             props.put("mail.smtp.starttls.enable", "true");
             props.put("mail.smtp.starttls.required", "true");
         }
 
-        @SuppressWarnings("unchecked")
-        Map<String, Object> tls = smtpConfig.containsKey("tls")
-                ? (Map<String, Object>) smtpConfig.get("tls")
-                : java.util.Collections.emptyMap();
-        if (Boolean.parseBoolean(tls.getOrDefault("rejectUnauthorized", true).toString()) == false) {
+        if (!smtpConfig.tls().rejectUnauthorized()) {
             props.put("mail.smtp.ssl.trust", "*");
         }
 
@@ -157,18 +176,17 @@ public class EmailService {
         return props;
     }
 
-    private Session createSession(Properties props, Map<String, Object> smtpConfig) throws IOException {
-        String user = smtpConfig.getOrDefault("user", "").toString();
+    private Session createSession(Properties props, LitoriaConfig.SmtpConfig smtpConfig) throws IOException {
+        String user = smtpConfig.user().orElse("");
 
         String password;
         if (isOAuth2(smtpConfig)) {
-            Map<String, Object> oauth2 = configService.getMap(smtpConfig, "oauth2");
             password = fetchAccessToken(
-                    oauth2.get("clientId").toString(),
-                    oauth2.get("clientSecret").toString(),
-                    oauth2.get("refreshToken").toString());
+                    smtpConfig.oauth2().clientId().get(),
+                    smtpConfig.oauth2().clientSecret().get(),
+                    smtpConfig.oauth2().refreshToken().get());
         } else {
-            password = smtpConfig.getOrDefault("pass", "").toString();
+            password = smtpConfig.pass().orElse("");
         }
 
         String authPassword = password;
@@ -215,34 +233,20 @@ public class EmailService {
         return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
-    private String resolveTemplate(String text, Map<String, Object> metadata) {
+    private String resolveTemplate(String text, Map<String, String> metadata) {
         if (text == null) {
             return "";
         }
         text = text.replace("{break}", "<br/>");
-        for (Map.Entry<String, Object> entry : metadata.entrySet()) {
-            String value = entry.getValue() != null ? entry.getValue().toString() : "";
+        for (Map.Entry<String, String> entry : metadata.entrySet()) {
+            String value = entry.getValue() != null ? entry.getValue() : "";
             text = text.replaceAll(Pattern.quote("{" + entry.getKey() + "}"), value);
         }
         return text;
     }
 
-    public String resolveHtmlFile(Map<String, Object> config, String projectDir, String fileName) {
-        try {
-            Map<String, Object> generator = configService.getGenerator(config);
-            Path path = findHtmlFile(generator, projectDir, fileName);
-            return path != null ? path.toString() : fileName + ".html";
-        } catch (IOException e) {
-            return fileName + ".html";
-        }
-    }
-
-    private Path findHtmlFile(Map<String, Object> generator, String projectDir, String fileName)
-            throws IOException {
-        String destination = configService.getString(generator, "destination");
-        if (destination == null) {
-            return null;
-        }
+    private Path findHtmlFile(String projectDir, String fileName) throws IOException {
+        String destination = config.generator().destination();
         Path destPath = Path.of(projectDir, destination);
         if (!Files.isDirectory(destPath)) {
             return null;
@@ -291,9 +295,4 @@ public class EmailService {
     }
 
     private record CidImage(String id, String mimeType, byte[] data) {}
-
-    private String getString(Map<String, Object> map, String key) {
-        Object val = map.get(key);
-        return val != null ? val.toString() : "";
-    }
 }
