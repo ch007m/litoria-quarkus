@@ -67,70 +67,109 @@ where `<cmd>` corresponds to one of the available commands: `init`, `generate`, 
 
 ### Configuration
 
-All project settings are defined in a single `config.yml` file. The structure depends on the engine selected.
+Configuration comes from three sources (in priority order):
 
-**Markdown** (default):
+1. **YAML frontmatter** in markdown files — per-report metadata (author, title, email, recipient, subject, signature)
+2. **Environment variables** — SMTP credentials and sensitive data
+3. **`application.properties`** — application defaults (generator settings, SMTP host/port, asciidoctor attributes)
 
-```yaml
-generator:
-  engine: "markdown"
-  source: "./source"
-  destination: "generated"
-  image: "${source}/image"
+#### Report metadata (YAML frontmatter)
 
-report:
-  author: "First & Last Name"
-  title: "Your Title"
-  email: "user@domain"
-  signature: "Cheers{break}----{break}{author}{break}{title}"
-
-  mail:
-    from: "{email}"
-    to: "recipient@domain"
-    subject: "{author}'s weekly report : {date}"
-```
-
-**AsciiDoc**:
+For **markdown** projects, each `.md` file starts with a YAML frontmatter block between `---` delimiters:
 
 ```yaml
-generator:
-  engine: "asciidoctor"
-  source: "./source"
-  destination: "generated"
-  image: "${source}/image"
+---
+author: Charles Moulliard
+title: Sr. Pr. Software Engineer
+email: cmoullia@redhat.com
+to: team@redhat.com
+subject: "{author}'s weekly report : {date}"
+signature: |
+  Cheers
+  ----
+  {author}
+  {title}
+---
 
-report:
-  author: "First & Last Name"
-  title: "Your Title"
-  email: "user@domain"
-  signature: "Cheers{break}----{break}{author}{break}{title}"
-
-  mail:
-    from: "{email}"
-    to: "recipient@domain"
-    subject: "{author}'s weekly report : {date}"
-
-asciidoctor:
-  attributes:
-    showtitle: ''
-    stylesheet: 'foundation.css'
-    stylesdir: 'css'
-    nofooter: 'yes'
-    icons: 'font'
-  options:
-    doctype: 'article'
-    safe: 'unsafe'
+# ![Quarkus](image/quarkus-logo.png) {author}'s report: {date}
+...
 ```
 
-Config values support `${key}` placeholders that resolve against sibling fields within the same section (e.g., `${source}` in `image` resolves to the value of `generator.source`).
+| Field     | Description                                                     | Required |
+|-----------|-----------------------------------------------------------------|:--------:|
+| author    | Author name, used in templates and subject                      |    x     |
+| title     | Job title, used in signature                                    |    x     |
+| email     | Email address, used as default sender (`from`)                  |    x     |
+| to        | Recipient email address(es)                                     |    x     |
+| subject   | Email subject (supports `{author}`, `{date}` placeholders)     |          |
+| signature | Appended after the email body (supports `{author}`, `{title}`)  |          |
 
-Template placeholders (`{author}`, `{title}`, `{email}`, `{date}`, `{break}`) are resolved from the `report` section. The `{date}` variable is auto-filled with today's date if not set. Use `{break}` for line breaks in signatures.
+Template placeholders (`{author}`, `{title}`, `{email}`, `{date}`) are resolved from the frontmatter values. The `{date}` variable is auto-filled with today's date if not set. Signatures use YAML multi-line syntax (`|`) — newlines are converted to `<br/>` in the email.
+
+For **asciidoctor** projects, report metadata is set via system properties or environment variables (see below).
+
+#### Application properties
+
+Default settings are defined in `application.properties` (bundled with the app). Override any property at runtime using system properties or environment variables:
+
+```shell
+# System property
+java -Dlitoria.generator.engine=asciidoctor -jar litoria.jar generate /path
+
+# Environment variable (replace dots with underscores, uppercase)
+LITORIA_GENERATOR_ENGINE=asciidoctor litoria generate /path
+```
+
+Key properties and their defaults:
+
+| Property                       | Default          | Description                        |
+|--------------------------------|------------------|------------------------------------|
+| `litoria.generator.engine`     | `markdown`       | Template engine: markdown or asciidoctor |
+| `litoria.generator.source`     | `./source`       | Source file(s) directory           |
+| `litoria.generator.destination`| `generated`      | Output directory base path         |
+| `litoria.report.mail.from`     | `{email}`        | Sender address (resolved from frontmatter `email`) |
+
+#### SMTP configuration (environment variables)
+
+SMTP credentials are configured via environment variables to keep sensitive data out of config files:
+
+```shell
+# Required
+export LITORIA_SMTP_HOST=smtp.gmail.com
+export LITORIA_SMTP_PORT=587
+export LITORIA_SMTP_USER=your-email@gmail.com
+
+# Auth option 1: App Password
+export LITORIA_SMTP_PASS=your-app-password
+
+# Auth option 2: OAuth2 (instead of LITORIA_SMTP_PASS)
+export LITORIA_SMTP_OAUTH2_CLIENT_ID=your-client-id
+export LITORIA_SMTP_OAUTH2_CLIENT_SECRET=your-client-secret
+export LITORIA_SMTP_OAUTH2_REFRESH_TOKEN=your-refresh-token
+```
+
+Additional SMTP properties can be overridden if needed:
+
+| Environment variable                   | Default          | Description                |
+|----------------------------------------|------------------|----------------------------|
+| `LITORIA_SMTP_HOST`                    |`smtp.gmail.com`  | SMTP server hostname       |
+| `LITORIA_SMTP_PORT`                    | `587`            | SMTP port                  |
+| `LITORIA_SMTP_USER`                    | —                | SMTP username              |
+| `LITORIA_SMTP_PASS`                    | —                | App password               |
+| `LITORIA_SMTP_OAUTH2_CLIENT_ID`        | —                | OAuth2 Client ID           |
+| `LITORIA_SMTP_OAUTH2_CLIENT_SECRET`    | —                | OAuth2 Client Secret       |
+| `LITORIA_SMTP_OAUTH2_REFRESH_TOKEN`    | —                | OAuth2 Refresh Token       |
+
+**Gmail authentication** (see [nodemailer Gmail guide](https://nodemailer.com/guides/using-gmail)):
+
+* **App Password** (simpler): Enable 2-Step Verification, then generate an app password at https://myaccount.google.com/apppasswords. Set `LITORIA_SMTP_USER` and `LITORIA_SMTP_PASS`.
+* **OAuth2** (recommended): Set `LITORIA_SMTP_USER`, `LITORIA_SMTP_OAUTH2_CLIENT_ID`, `LITORIA_SMTP_OAUTH2_CLIENT_SECRET`, and `LITORIA_SMTP_OAUTH2_REFRESH_TOKEN`.
 
 ## Commands
 
 ### init
 
-Create a project containing a default `config.yml` and template(s):
+Create a project with template source files:
 
 ```shell
 litoria init /path/to/project
@@ -157,17 +196,11 @@ litoria init -f /path/to/project
 
 ### generate
 
-Render the source file(s) into HTML. The engine is selected automatically based on `generator.engine` in the config. Each run creates a timestamped subfolder under the destination directory (e.g., `generated/2026-08-11_14-30`):
+Render the source file(s) into HTML. The engine is selected from `litoria.generator.engine` (default: `markdown`). Each run creates a timestamped subfolder under the destination directory (e.g., `generated/2026-08-14_18-04`):
 
 ```shell
 litoria generate                      # uses current directory
 litoria generate ./report/quarkus
-```
-
-To use a specific config file, pass it with `-c`:
-
-```shell
-litoria generate -c my-config.yml
 ```
 
 To override the destination directory (no timestamp subfolder), use `-d`:
@@ -180,7 +213,6 @@ To embed CSS and images as base64 into self-contained HTML after generation, use
 
 ```shell
 litoria generate --embed
-litoria generate -e -c config.yml
 ```
 
 The `--embed` option inlines CSS from linked stylesheets and `<style>` blocks into `style` attributes, converts image references to embedded base64 data URIs, and embeds Font Awesome icons (downloading the woff2 font from CDN and encoding it as base64) — producing fully self-contained, email-ready HTML that renders correctly without any network access.
@@ -198,80 +230,7 @@ Use `-f` / `--file` to specify which HTML file to send (without the `.html` exte
 
 The `send` command automatically finds the latest timestamped subfolder and looks for the specified HTML file to use as the email body. Run `generate --embed` before sending.
 
-Configure the `smtp` section in your `config.yml`. Two authentication methods are supported:
-
-**App Password:**
-
-```yaml
-smtp:
-  host: "smtp.gmail.com"
-  port: 587
-  secure: false
-  requireTLS: true
-  user: "{email}"
-  pass: "your-app-password"
-```
-
-**OAuth2:**
-
-```yaml
-smtp:
-  host: "smtp.gmail.com"
-  port: 587
-  secure: false
-  requireTLS: true
-  user: "{email}"
-  oauth2:
-    clientId: "your-client-id"
-    clientSecret: "your-client-secret"
-    refreshToken: "your-refresh-token"
-```
-
-**smtp fields:**
-
-| Field            | Description                                     | Required |
-|------------------|-------------------------------------------------|:--------:|
-| host             | SMTP server hostname                            |    x     |
-| port             | SMTP port (587 for TLS, 465 for SSL)            |    x     |
-| secure           | `true` for port 465, `false` for 587            |    x     |
-| requireTLS       | Force STARTTLS upgrade                          |          |
-| tls              | TLS options (e.g., `rejectUnauthorized: false`)  |          |
-| user             | Email account username                          |    x     |
-| pass             | App Password                                    |          |
-
-**smtp.oauth2 fields** (alternative to `pass`):
-
-| Field            | Description                                     | Required |
-|------------------|-------------------------------------------------|:--------:|
-| clientId         | Google OAuth2 Client ID                         |    x     |
-| clientSecret     | Google OAuth2 Client Secret                     |    x     |
-| refreshToken     | Google OAuth2 Refresh Token                     |    x     |
-
-**report fields:**
-
-| Field     | Description                                                     | Required |
-|-----------|-----------------------------------------------------------------|:--------:|
-| author    | Author name, used in templates and subject                      |    x     |
-| title     | Job title, used in signature                                    |          |
-| email     | Email address, used in `mail.from` and `smtp.user`              |    x     |
-| date      | Report date (auto-filled with today if not set)                 |          |
-| signature | Appended after the body (supports `{variable}` and `{break}`)  |          |
-
-**report.mail fields:**
-
-| Field     | Description                                                     | Required |
-|-----------|-----------------------------------------------------------------|:--------:|
-| from      | Sender email address (supports `{variable}` placeholders)       |    x     |
-| to        | Recipient email address(es)                                     |    x     |
-| subject   | Email subject (supports `{variable}` placeholders)              |    x     |
-| body      | Email body as inline HTML (supports `{variable}` and `{break}`) |          |
-
-If `body` is not set, the embedded HTML file is used as the email body.
-
-**Gmail authentication** (see [nodemailer Gmail guide](https://nodemailer.com/guides/using-gmail)):
-
-* **App Password** (simpler): Enable 2-Step Verification, then generate an app password at https://myaccount.google.com/apppasswords. Set `user` and `pass`.
-* **OAuth2** (recommended): Set `user`, `clientId`, `clientSecret`, and `refreshToken`.
+SMTP credentials must be configured via environment variables (see [SMTP configuration](#smtp-configuration-environment-variables) above). The sender address, recipient, subject, and signature are read from the markdown frontmatter.
 
 ## Running in dev mode
 
@@ -318,4 +277,4 @@ The project name corresponds to the frog genus **Litoria** which contains many s
 | AsciiDoc processor (AsciidoctorJ)| https://github.com/asciidoctor/asciidoctorj                |
 | HTML parser (Jsoup)              | https://github.com/jhy/jsoup                               |
 | SMTP email (Angus Mail)          | https://eclipse-ee4j.github.io/angus-mail/                 |
-| YAML config (SnakeYAML)          | https://github.com/snakeyaml/snakeyaml                     |
+| YAML frontmatter (SnakeYAML)     | https://github.com/snakeyaml/snakeyaml                     |
