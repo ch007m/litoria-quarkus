@@ -18,7 +18,7 @@
      or copy/paste en emaoji from: https://jdecked.github.io/twemoji/v/latest/preview-svg.html
 
 -->
-# {author}'s report: {date}
+# ![Quarkus](image/quarkus-logo.png) {author}'s report: {date}
 
 ## What was done last week ☀️🌞
 

@@ -5,8 +5,10 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -22,6 +24,7 @@ import org.commonmark.renderer.html.HtmlRenderer;
 public class MarkdownService {
 
     private static final String DEFAULT_CSS_RESOURCE = "templates/markdown/css/report.css";
+    private static final Pattern MD_IMAGE_PATTERN = Pattern.compile("!\\[[^]]*]\\([^)]*\\)\\s*");
 
     @Inject
     ConfigService configService;
@@ -59,9 +62,11 @@ public class MarkdownService {
                     convertFile(mdFile, destPath.resolve(outputName), parser, renderer, metadata, css);
                 }
             }
+            copyImages(sourcePath, destPath);
         } else if (Files.isRegularFile(sourcePath)) {
             String outputName = getFileNameWithoutExtension(sourcePath) + ".html";
             convertFile(sourcePath, destPath.resolve(outputName), parser, renderer, metadata, css);
+            copyImages(sourcePath.getParent(), destPath);
         } else {
             throw new IOException("Source not found: " + sourcePath);
         }
@@ -109,10 +114,28 @@ public class MarkdownService {
         for (String line : markdown.lines().toList()) {
             String trimmed = line.trim();
             if (trimmed.startsWith("# ")) {
-                return trimmed.substring(2).trim();
+                String title = trimmed.substring(2).trim();
+                return MD_IMAGE_PATTERN.matcher(title).replaceAll("").trim();
             }
         }
         return "Report";
+    }
+
+    private void copyImages(Path sourceDir, Path destDir) throws IOException {
+        Path imageDir = sourceDir.resolve("image");
+        if (!Files.isDirectory(imageDir)) {
+            return;
+        }
+        Path destImageDir = destDir.resolve("image");
+        Files.createDirectories(destImageDir);
+        try (Stream<Path> images = Files.list(imageDir)) {
+            for (Path img : images.toList()) {
+                if (Files.isRegularFile(img)) {
+                    Files.copy(img, destImageDir.resolve(img.getFileName()),
+                            StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        }
     }
 
     private String wrapInHtmlDocument(String bodyHtml, String title, String css) {

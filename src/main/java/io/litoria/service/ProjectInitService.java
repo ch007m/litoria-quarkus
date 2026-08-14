@@ -19,7 +19,8 @@ public class ProjectInitService {
     private static final String MARKDOWN_BASE = TEMPLATES_BASE + "markdown/";
     private static final String[] ASCIIDOCTOR_CSS = {"asciidoctor.css", "font-awesome.min.css", "foundation.css"};
     private static final String[] MARKDOWN_CSS = {"report.css", "report-card.css", "report-card-2.css"};
-    private static final String[] IMAGE_FILES = {"litoria-chloris.jpg", "quarkus-logo.png"};
+    private static final String[] ASCIIDOCTOR_IMAGES = {"litoria-chloris.jpg", "quarkus-logo.png"};
+    private static final String[] MARKDOWN_IMAGES = {"quarkus-logo.png"};
 
     public void createProject(ProjectType type, boolean force, String dir) throws IOException {
         createProject(type, force, dir, false);
@@ -60,20 +61,23 @@ public class ProjectInitService {
 
         Files.createDirectories(projectDir.resolve("source/css"));
 
+        Files.createDirectories(projectDir.resolve("source/image"));
+
         if (markdown) {
             for (String css : MARKDOWN_CSS) {
                 copyResource(MARKDOWN_BASE + "css/" + css,
                         projectDir.resolve("source/css/" + css));
             }
+            for (String image : MARKDOWN_IMAGES) {
+                copyResource(MARKDOWN_BASE + "image/" + image,
+                        projectDir.resolve("source/image/" + image));
+            }
         } else {
-            Files.createDirectories(projectDir.resolve("source/image"));
-
             for (String css : ASCIIDOCTOR_CSS) {
                 copyResource(ASCIIDOCTOR_BASE + "css/" + css,
                         projectDir.resolve("source/css/" + css));
             }
-
-            for (String image : IMAGE_FILES) {
+            for (String image : ASCIIDOCTOR_IMAGES) {
                 copyResource(ASCIIDOCTOR_BASE + "image/" + image,
                         projectDir.resolve("source/image/" + image));
             }
