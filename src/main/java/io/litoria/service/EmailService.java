@@ -51,51 +51,59 @@ public class EmailService {
             throws MessagingException, IOException {
         LitoriaConfig.SmtpConfig smtpConfig = config.smtp();
 
-        LOG.debugf("SMTP host: %s", smtpConfig.host());
-        LOG.debugf("SMTP port: %d", smtpConfig.port());
-        LOG.debugf("SMTP user: %s", smtpConfig.user().orElse("<not set>"));
-        LOG.debugf("SMTP pass: %s", smtpConfig.pass().map(p -> p.isBlank() ? "<blank>" : "****").orElse("<not set>"));
-        LOG.debugf("SMTP secure: %s", smtpConfig.secure());
-        LOG.debugf("SMTP requireTls: %s", smtpConfig.requireTls());
-        LOG.debugf("SMTP tls.rejectUnauthorized: %s", smtpConfig.tls().rejectUnauthorized());
-        LOG.debugf("SMTP oauth2.clientId: %s", smtpConfig.oauth2().clientId().map(v -> v.isBlank() ? "<blank>" : "****").orElse("<not set>"));
-        LOG.debugf("SMTP oauth2.clientSecret: %s", smtpConfig.oauth2().clientSecret().map(v -> v.isBlank() ? "<blank>" : "****").orElse("<not set>"));
-        LOG.debugf("SMTP oauth2.refreshToken: %s", smtpConfig.oauth2().refreshToken().map(v -> v.isBlank() ? "<blank>" : "****").orElse("<not set>"));
-        LOG.debugf("OAuth2 detected: %s", isOAuth2(smtpConfig));
-
-        if (smtpConfig.user().isEmpty() || smtpConfig.user().get().isBlank()) {
-            throw new MessagingException(
-                    "SMTP user not configured. Set the LITORIA_SMTP_USER environment variable.");
-        }
-
-        Properties props = buildSmtpProperties(smtpConfig);
-        Session session = createSession(props, smtpConfig);
-
         Map<String, String> resolvedMetadata = new HashMap<>(metadata);
         if (!resolvedMetadata.containsKey("date")) {
             resolvedMetadata.put("date", LocalDate.now().format(DateTimeFormatter.ofPattern("M/d/yyyy")));
         }
 
-        String subjectTemplate = resolvedMetadata.getOrDefault("subject",
-                config.report().mail().subject().orElse("{author}'s weekly report : {date}"));
-        String subject = resolveTemplate(subjectTemplate, resolvedMetadata);
-        String from = resolveTemplate(config.report().mail().from(), resolvedMetadata);
+        String smtpUser = smtpConfig.user()
+                .filter(u -> !u.isBlank())
+                .orElse(resolvedMetadata.getOrDefault("email", ""));
         String to = config.report().mail().to()
+                .filter(t -> !t.isBlank())
                 .map(t -> resolveTemplate(t, resolvedMetadata))
                 .orElse(resolvedMetadata.getOrDefault("to", ""));
+        String from = resolveTemplate(config.report().mail().from(), resolvedMetadata);
+
+        LOG.debugf("SMTP host: %s", smtpConfig.host());
+        LOG.debugf("SMTP port: %d", smtpConfig.port());
+        LOG.debugf("SMTP user: %s", smtpUser);
+        LOG.debugf("SMTP pass: %s", smtpConfig.pass().map(p -> p.isBlank() ? "<blank>" : "****").orElse("<not set>"));
+        LOG.debugf("SMTP oauth2.clientId: %s", smtpConfig.oauth2().clientId().map(v -> v.isBlank() ? "<blank>" : "****").orElse("<not set>"));
+        LOG.debugf("OAuth2 detected: %s", isOAuth2(smtpConfig));
+        LOG.debugf("From: %s", from);
+        LOG.debugf("To: %s", to);
+
+        if (smtpUser.isBlank()) {
+            throw new MessagingException(
+                    "SMTP user not configured. Set 'email' in frontmatter or LITORIA_SMTP_USER env var.");
+        }
 
         if (to.isBlank()) {
             throw new MessagingException("Recipient 'to' address not configured. "
-                    + "Set it in frontmatter or application.properties (litoria.report.mail.to).");
+                    + "Set 'to' in frontmatter or LITORIA_SMTP_USER env var.");
         }
+
+        String subjectTemplate = resolvedMetadata.getOrDefault("subject",
+                config.report().mail().subject().orElse("{author}'s weekly report : {date}"));
+        String subject = resolveTemplate(subjectTemplate, resolvedMetadata);
+
+        Properties props = buildSmtpProperties(smtpConfig);
+        Session session = createSession(props, smtpConfig, smtpUser);
 
         String htmlBody;
         Path embeddedFile = findHtmlFile(projectDir, fileName);
         if (embeddedFile != null && Files.exists(embeddedFile)) {
             htmlBody = resolveTemplate(Files.readString(embeddedFile), resolvedMetadata);
         } else {
-            throw new IOException("No embedded file found in the destination directory."
-                    + " Run 'generate --embed' first.");
+            String available = listAvailableHtmlFiles(projectDir);
+            if (available.isEmpty()) {
+                throw new IOException("No HTML files found in the destination directory."
+                        + " Run 'generate --embed' first.");
+            }
+            throw new IOException("File '" + fileName + ".html' not found. Available report(s):\n"
+                    + available
+                    + "\nUse: litoria send -f <name> " + projectDir);
         }
 
         String signatureTemplate = resolvedMetadata.getOrDefault("signature",
@@ -176,8 +184,8 @@ public class EmailService {
         return props;
     }
 
-    private Session createSession(Properties props, LitoriaConfig.SmtpConfig smtpConfig) throws IOException {
-        String user = smtpConfig.user().orElse("");
+    private Session createSession(Properties props, LitoriaConfig.SmtpConfig smtpConfig, String smtpUser) throws IOException {
+        String user = smtpUser;
 
         String password;
         if (isOAuth2(smtpConfig)) {
@@ -246,18 +254,67 @@ public class EmailService {
     }
 
     private Path findHtmlFile(String projectDir, String fileName) throws IOException {
-        String destination = config.generator().destination();
-        Path destPath = Path.of(projectDir, destination);
-        if (!Files.isDirectory(destPath)) {
+        Path searchDir = resolveHtmlSearchDir(projectDir);
+        if (searchDir == null || !Files.isDirectory(searchDir)) {
             return null;
         }
 
-        Path searchDir = findLatestSubfolder(destPath);
         Path target = searchDir.resolve(fileName + ".html");
         if (Files.exists(target)) {
             return target;
         }
+
+        try (var htmlFiles = Files.list(searchDir)) {
+            List<Path> found = htmlFiles
+                    .filter(p -> p.toString().endsWith(".html"))
+                    .toList();
+            if (found.size() == 1) {
+                return found.get(0);
+            }
+        }
         return null;
+    }
+
+    private Path resolveHtmlSearchDir(String projectDir) throws IOException {
+        String destination = config.generator().destination();
+        Path destPath = Path.of(projectDir, destination);
+        if (Files.isDirectory(destPath)) {
+            return findLatestSubfolder(destPath);
+        }
+        Path dirPath = Path.of(projectDir);
+        if (Files.isDirectory(dirPath) && containsHtmlFiles(dirPath)) {
+            return dirPath;
+        }
+        return null;
+    }
+
+    private boolean containsHtmlFiles(Path dir) {
+        try (var files = Files.list(dir)) {
+            return files.anyMatch(p -> p.toString().endsWith(".html"));
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private String listAvailableHtmlFiles(String projectDir) {
+        try {
+            Path searchDir = resolveHtmlSearchDir(projectDir);
+            if (searchDir == null || !Files.isDirectory(searchDir)) {
+                return "";
+            }
+            try (var htmlFiles = Files.list(searchDir)) {
+                return htmlFiles
+                        .filter(p -> p.toString().endsWith(".html"))
+                        .map(p -> {
+                            String name = p.getFileName().toString();
+                            return "  - " + name.substring(0, name.length() - 5);
+                        })
+                        .reduce((a, b) -> a + "\n" + b)
+                        .orElse("");
+            }
+        } catch (IOException e) {
+            return "";
+        }
     }
 
     private Path findLatestSubfolder(Path destPath) throws IOException {

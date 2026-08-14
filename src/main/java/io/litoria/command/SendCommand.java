@@ -22,6 +22,8 @@ import io.litoria.service.FrontmatterService;
 @CommandDefinition(name = "send", description = "Send HTML content as email via SMTP")
 public class SendCommand implements Command<CommandInvocation> {
 
+    private static final org.jboss.logging.Logger LOG = org.jboss.logging.Logger.getLogger(SendCommand.class);
+
     @Option(shortName = 'f', name = "file",
             description = "Name of the HTML file to send (without extension)",
             defaultValue = "report")
@@ -66,19 +68,46 @@ public class SendCommand implements Command<CommandInvocation> {
 
     private Map<String, String> loadMetadata(String projectDir) throws Exception {
         String engine = config.generator().engine();
+        LOG.debugf("Engine: %s", engine);
         if ("markdown".equalsIgnoreCase(engine)) {
-            Path sourceDir = Path.of(projectDir, config.generator().source());
-            Path mdFile = findMarkdownFile(sourceDir);
-            if (mdFile != null) {
-                return frontmatterService.parseFrontmatter(mdFile);
+            Path sourceDir = resolveSourceDir(projectDir);
+            LOG.debugf("Source dir: %s (exists: %s)", sourceDir, sourceDir != null && java.nio.file.Files.isDirectory(sourceDir));
+            if (sourceDir != null) {
+                Path mdFile = findMarkdownFile(sourceDir);
+                LOG.debugf("Markdown file found: %s", mdFile);
+                if (mdFile != null) {
+                    Map<String, String> metadata = frontmatterService.parseFrontmatter(mdFile);
+                    LOG.debugf("Parsed frontmatter keys: %s", metadata.keySet());
+                    return metadata;
+                }
             }
         }
+        LOG.debug("Falling back to application.properties for report metadata");
         Map<String, String> metadata = new HashMap<>();
         config.report().author().ifPresent(v -> metadata.put("author", v));
         config.report().title().ifPresent(v -> metadata.put("title", v));
         config.report().email().ifPresent(v -> metadata.put("email", v));
         config.report().mail().to().ifPresent(v -> metadata.put("to", v));
         return metadata;
+    }
+
+    private Path resolveSourceDir(String projectDir) {
+        String source = config.generator().source();
+        Path sourceDir = Path.of(projectDir, source);
+        if (Files.isDirectory(sourceDir)) {
+            return sourceDir;
+        }
+        Path current = Path.of(projectDir);
+        for (int i = 0; i < 5; i++) {
+            current = current.getParent();
+            if (current == null) break;
+            Path candidate = current.resolve(source);
+            if (Files.isDirectory(candidate)) {
+                LOG.debugf("Found source dir by walking up to: %s", current);
+                return candidate;
+            }
+        }
+        return null;
     }
 
     private Path findMarkdownFile(Path sourceDir) throws Exception {
