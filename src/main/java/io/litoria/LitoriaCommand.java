@@ -15,7 +15,7 @@ import io.litoria.command.SendCommand;
 
 @CommandDefinition(
         name = "litoria",
-        description = "AsciiDoc project management tool",
+        description = "Content management tool to generate HTML/PDF from AsciiDoc or Markdown",
         groupCommands = {
                 InitCommand.class,
                 GenerateCommand.class,

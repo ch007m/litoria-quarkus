@@ -21,8 +21,9 @@ import jakarta.inject.Inject;
 import io.litoria.service.AsciidocService;
 import io.litoria.service.ConfigService;
 import io.litoria.service.EmbedService;
+import io.litoria.service.MarkdownService;
 
-@CommandDefinition(name = "generate", description = "Render AsciiDoc files to HTML or PDF")
+@CommandDefinition(name = "generate", description = "Generate the (embedded) HTML")
 public class GenerateCommand implements Command<CommandInvocation> {
 
     private static final DateTimeFormatter TIMESTAMP_FORMAT =
@@ -52,6 +53,9 @@ public class GenerateCommand implements Command<CommandInvocation> {
     AsciidocService asciidocService;
 
     @Inject
+    MarkdownService markdownService;
+
+    @Inject
     ConfigService configService;
 
     @Inject
@@ -73,10 +77,20 @@ public class GenerateCommand implements Command<CommandInvocation> {
                 return CommandResult.FAILURE;
             }
 
-            invocation.println("Generating HTML from AsciiDoc files...");
-            asciidocService.convertToHtml(config, resolvedDir);
+            String engine = configService.getString(generator, "engine");
+            boolean isMarkdown = "markdown".equalsIgnoreCase(engine);
+
+            if (isMarkdown) {
+                invocation.println("Generating HTML from Markdown files...");
+                markdownService.convertToHtml(config, resolvedDir);
+            } else {
+                invocation.println("Generating HTML from AsciiDoc files...");
+                asciidocService.convertToHtml(config, resolvedDir);
+            }
             invocation.println("HTML generation complete.");
-            invocation.println("Output: " + Path.of(resolvedDir, resolvedDest).normalize().toAbsolutePath());
+            Path outputDir = Path.of(resolvedDir, resolvedDest).normalize().toAbsolutePath();
+            invocation.println("Output: " + outputDir);
+            listHtmlLinks(invocation, outputDir);
 
             if (embed) {
 
@@ -134,5 +148,16 @@ public class GenerateCommand implements Command<CommandInvocation> {
             count++;
         }
         return count;
+    }
+
+    private void listHtmlLinks(CommandInvocation invocation, Path outputDir) {
+        try (Stream<Path> htmlFiles = Files.list(outputDir)
+                .filter(p -> p.toString().endsWith(".html"))
+                .sorted()) {
+            for (Path htmlFile : htmlFiles.toList()) {
+                invocation.println("  -> file://" + htmlFile.toAbsolutePath());
+            }
+        } catch (IOException ignored) {
+        }
     }
 }

@@ -1,6 +1,6 @@
-# <img src="src/main/resources/templates/image/litoria-chloris.jpg" width="80"> litoria-quarkus
+# <img src="src/main/resources/templates/asciidoctor/image/litoria-chloris.jpg" width="80"> litoria-quarkus
 
-Command Line Tool to manage AsciiDoc projects (create, generate HTML content), embed CSS & images, and send reports as email — built on [Quarkus](https://quarkus.io/) with [Aesh](https://quarkus.io/guides/aesh).
+Command Line Tool to manage AsciiDoc and Markdown projects (create, generate HTML content), embed CSS & images, and send reports as email — built on [Quarkus](https://quarkus.io/) with [Aesh](https://quarkus.io/guides/aesh).
 
 |                 | Project Info                                        |
 | --------------- |-----------------------------------------------------|
@@ -44,6 +44,7 @@ You can now use `litoria` directly:
 
 ```shell
 litoria init -t report /tmp/my-report
+litoria init -t report -e asciidoctor /tmp/my-report
 litoria generate /tmp/my-report
 litoria generate --embed /tmp/my-report
 litoria send /tmp/my-report
@@ -66,17 +67,48 @@ where `<cmd>` corresponds to one of the available commands: `init`, `generate`, 
 
 ### Configuration
 
-All project settings are defined in a single `config.yml` file using the following structure:
+All project settings are defined in a single `config.yml` file. The structure depends on the engine selected.
+
+**Markdown** (default):
 
 ```yaml
 generator:
+  engine: "markdown"
   source: "./source"
   destination: "generated"
   image: "${source}/image"
 
-  metadata:
-    author: "First & Last Name"
-    email: "user@domain"
+report:
+  author: "First & Last Name"
+  title: "Your Title"
+  email: "user@domain"
+  signature: "Cheers{break}----{break}{author}{break}{title}"
+
+  mail:
+    from: "{email}"
+    to: "recipient@domain"
+    subject: "{author}'s weekly report : {date}"
+```
+
+**AsciiDoc**:
+
+```yaml
+generator:
+  engine: "asciidoctor"
+  source: "./source"
+  destination: "generated"
+  image: "${source}/image"
+
+report:
+  author: "First & Last Name"
+  title: "Your Title"
+  email: "user@domain"
+  signature: "Cheers{break}----{break}{author}{break}{title}"
+
+  mail:
+    from: "{email}"
+    to: "recipient@domain"
+    subject: "{author}'s weekly report : {date}"
 
 asciidoctor:
   attributes:
@@ -92,22 +124,30 @@ asciidoctor:
 
 Config values support `${key}` placeholders that resolve against sibling fields within the same section (e.g., `${source}` in `image` resolves to the value of `generator.source`).
 
+Template placeholders (`{author}`, `{title}`, `{email}`, `{date}`, `{break}`) are resolved from the `report` section. The `{date}` variable is auto-filled with today's date if not set. Use `{break}` for line breaks in signatures.
+
 ## Commands
 
 ### init
 
-Create a project containing a default `config.yml` and AsciiDoc template(s):
+Create a project containing a default `config.yml` and template(s):
 
 ```shell
 litoria init /path/to/project
 litoria init -t report /path/to/project
+litoria init -t report -e asciidoctor /path/to/project
 ```
 
 Several project types are supported via the `-t` option (default: `simple`):
 
 * **simple** — a simple adoc example
-* **report** — a **minute** and **report** adoc example
+* **report** — a **report** template (markdown by default, or adoc with `-e asciidoctor`)
 * **slideshow** — RevealJS slideshow project *(not yet supported)*
+
+The `-e` option selects the template engine (default: `markdown`):
+
+* **markdown** — uses [CommonMark](https://commonmark.org/) to generate HTML
+* **asciidoctor** — uses [AsciidoctorJ](https://github.com/asciidoctor/asciidoctorj) to generate HTML
 
 Use `-f` to force creation in an existing non-empty directory:
 
@@ -117,7 +157,7 @@ litoria init -f /path/to/project
 
 ### generate
 
-Render the AsciiDoc file(s) in the `source` directory into HTML. Each run creates a timestamped subfolder under the destination directory (e.g., `generated/2026-08-11_14-30`):
+Render the source file(s) into HTML. The engine is selected automatically based on `generator.engine` in the config. Each run creates a timestamped subfolder under the destination directory (e.g., `generated/2026-08-11_14-30`):
 
 ```shell
 litoria generate                      # uses current directory
@@ -158,7 +198,7 @@ Use `-f` / `--file` to specify which HTML file to send (without the `.html` exte
 
 The `send` command automatically finds the latest timestamped subfolder and looks for the specified HTML file to use as the email body. Run `generate --embed` before sending.
 
-Configure the `smtp` and `mail` sections in your `config.yml`. Two authentication methods are supported:
+Configure the `smtp` section in your `config.yml`. Two authentication methods are supported:
 
 **App Password:**
 
@@ -168,7 +208,7 @@ smtp:
   port: 587
   secure: false
   requireTLS: true
-  user: "your-email@gmail.com"
+  user: "{email}"
   pass: "your-app-password"
 ```
 
@@ -180,24 +220,12 @@ smtp:
   port: 587
   secure: false
   requireTLS: true
-  user: "your-email@gmail.com"
+  user: "{email}"
   oauth2:
     clientId: "your-client-id"
     clientSecret: "your-client-secret"
     refreshToken: "your-refresh-token"
 ```
-
-**Mail section:**
-
-```yaml
-mail:
-  from: "your-email@gmail.com"
-  to: "recipient@domain.com"
-  subject: "{author}'s weekly report : {date}"
-  signature: "Cheers{break}----{break}{author}{break}YOUR_TITLE"
-```
-
-Template placeholders (`{author}`, `{email}`, `{date}`, `{break}`) are resolved from `generator.metadata`. The `{date}` variable is auto-filled with today's date if not explicitly defined. Use `{break}` for line breaks.
 
 **smtp fields:**
 
@@ -219,15 +247,24 @@ Template placeholders (`{author}`, `{email}`, `{date}`, `{break}`) are resolved 
 | clientSecret     | Google OAuth2 Client Secret                     |    x     |
 | refreshToken     | Google OAuth2 Refresh Token                     |    x     |
 
-**mail fields:**
+**report fields:**
 
 | Field     | Description                                                     | Required |
 |-----------|-----------------------------------------------------------------|:--------:|
-| from      | Sender email address                                            |    x     |
+| author    | Author name, used in templates and subject                      |    x     |
+| title     | Job title, used in signature                                    |          |
+| email     | Email address, used in `mail.from` and `smtp.user`              |    x     |
+| date      | Report date (auto-filled with today if not set)                 |          |
+| signature | Appended after the body (supports `{variable}` and `{break}`)  |          |
+
+**report.mail fields:**
+
+| Field     | Description                                                     | Required |
+|-----------|-----------------------------------------------------------------|:--------:|
+| from      | Sender email address (supports `{variable}` placeholders)       |    x     |
 | to        | Recipient email address(es)                                     |    x     |
 | subject   | Email subject (supports `{variable}` placeholders)              |    x     |
 | body      | Email body as inline HTML (supports `{variable}` and `{break}`) |          |
-| signature | Appended after the body (supports `{variable}` and `{break}`)  |          |
 
 If `body` is not set, the embedded HTML file is used as the email body.
 
@@ -277,6 +314,7 @@ The project name corresponds to the frog genus **Litoria** which contains many s
 |----------------------------------|-----------------------------------------------------------:|
 | Quarkus framework                | https://quarkus.io/                                        |
 | Aesh CLI framework               | https://quarkus.io/guides/aesh                             |
+| CommonMark (Markdown parser)     | https://github.com/commonmark/commonmark-java              |
 | AsciiDoc processor (AsciidoctorJ)| https://github.com/asciidoctor/asciidoctorj                |
 | HTML parser (Jsoup)              | https://github.com/jhy/jsoup                               |
 | SMTP email (Angus Mail)          | https://eclipse-ee4j.github.io/angus-mail/                 |

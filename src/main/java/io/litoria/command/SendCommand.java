@@ -41,7 +41,8 @@ public class SendCommand implements Command<CommandInvocation> {
             String cfgPath = configService.resolveConfigFile(resolvedDir, configFile);
             Map<String, Object> config = configService.loadConfig(cfgPath);
 
-            invocation.println("Sending " + file + ".html ...");
+            String resolvedFile = emailService.resolveHtmlFile(config, resolvedDir, file);
+            invocation.println("Sending " + resolvedFile + " ...");
             emailService.sendEmail(config, resolvedDir, file);
             invocation.println("Email sent successfully.");
             return CommandResult.SUCCESS;

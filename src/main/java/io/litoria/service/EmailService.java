@@ -46,7 +46,8 @@ public class EmailService {
     public void sendEmail(Map<String, Object> config, String projectDir, String fileName) throws MessagingException, IOException {
         Map<String, Object> generator = configService.getGenerator(config);
         Map<String, Object> smtpConfig = configService.getMap(config, "smtp");
-        Map<String, Object> mailConfig = configService.getMap(config, "mail");
+        Map<String, Object> reportConfig = configService.getMap(config, "report");
+        Map<String, Object> mailConfig = configService.getMap(reportConfig, "mail");
 
         if (smtpConfig.isEmpty()) {
             throw new MessagingException(
@@ -56,15 +57,16 @@ public class EmailService {
         Properties props = buildSmtpProperties(smtpConfig);
         Session session = createSession(props, smtpConfig);
 
-        Map<String, Object> metadata = new java.util.HashMap<>(configService.getMap(generator, "metadata"));
+        Map<String, Object> metadata = new java.util.HashMap<>(reportConfig);
+        metadata.remove("mail");
 
         if (!metadata.containsKey("date")) {
             metadata.put("date", LocalDate.now().format(DateTimeFormatter.ofPattern("M/d/yyyy")));
         }
 
         String subject = resolveTemplate(getString(mailConfig, "subject"), metadata);
-        String from = getString(mailConfig, "from");
-        String to = getString(mailConfig, "to");
+        String from = resolveTemplate(getString(mailConfig, "from"), metadata);
+        String to = resolveTemplate(getString(mailConfig, "to"), metadata);
 
         String htmlBody;
         if (mailConfig.containsKey("body") && mailConfig.get("body") != null) {
@@ -79,8 +81,9 @@ public class EmailService {
             }
         }
 
-        if (mailConfig.containsKey("signature") && mailConfig.get("signature") != null) {
-            String sig = resolveTemplate(mailConfig.get("signature").toString(), metadata);
+        String signature = configService.getString(reportConfig, "signature");
+        if (signature != null) {
+            String sig = resolveTemplate(signature, metadata);
             sig = sig.replace("\n", "<br/>");
             htmlBody += "<br/><hr style=\"border:none;border-top:1px solid #ccc;margin:1em 0\"/>" + sig;
         }
@@ -222,6 +225,16 @@ public class EmailService {
             text = text.replaceAll(Pattern.quote("{" + entry.getKey() + "}"), value);
         }
         return text;
+    }
+
+    public String resolveHtmlFile(Map<String, Object> config, String projectDir, String fileName) {
+        try {
+            Map<String, Object> generator = configService.getGenerator(config);
+            Path path = findHtmlFile(generator, projectDir, fileName);
+            return path != null ? path.toString() : fileName + ".html";
+        } catch (IOException e) {
+            return fileName + ".html";
+        }
     }
 
     private Path findHtmlFile(Map<String, Object> generator, String projectDir, String fileName)

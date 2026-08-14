@@ -38,7 +38,7 @@ public class AsciidocService {
         Map<String, Object> asciidoctorConfig = configService.getMap(config, "asciidoctor");
         Map<String, Object> attrsMap = new java.util.HashMap<>(configService.getMap(asciidoctorConfig, "attributes"));
 
-        Map<String, Object> metadata = configService.getMap(generator, "metadata");
+        Map<String, Object> metadata = configService.getMap(config, "report");
         if (!metadata.containsKey("date")) {
             metadata = new java.util.HashMap<>(metadata);
             metadata.put("date", java.time.LocalDate.now()

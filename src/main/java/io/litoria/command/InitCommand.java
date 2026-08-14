@@ -12,7 +12,7 @@ import jakarta.inject.Inject;
 import io.litoria.model.ProjectType;
 import io.litoria.service.ProjectInitService;
 
-@CommandDefinition(name = "init", description = "Create a new AsciiDoc project")
+@CommandDefinition(name = "init", description = "Create a new project with adoc or markdown files")
 public class InitCommand implements Command<CommandInvocation> {
 
     @Option(shortName = 'f', description = "Force use of an existing folder", hasValue = false)
@@ -21,6 +21,11 @@ public class InitCommand implements Command<CommandInvocation> {
     @Option(shortName = 't', description = "Type of project: simple, report, slideshow",
             defaultValue = "simple")
     private String type;
+
+    @Option(shortName = 'e', name = "engine",
+            description = "Template engine: markdown or asciidoctor",
+            defaultValue = "markdown")
+    private String engine;
 
     @Argument(description = "Project directory path (defaults to current directory)")
     private String projectDir;
@@ -42,10 +47,12 @@ public class InitCommand implements Command<CommandInvocation> {
             return CommandResult.FAILURE;
         }
 
+        boolean markdown = "markdown".equalsIgnoreCase(engine);
         invocation.println("Type selected: " + projectType.getValue());
+        invocation.println("Engine: " + (markdown ? "markdown" : "asciidoctor"));
 
         try {
-            initService.createProject(projectType, force, projectDir);
+            initService.createProject(projectType, force, projectDir, markdown);
             invocation.println("Project " + projectDir + " successfully created.");
             return CommandResult.SUCCESS;
         } catch (Exception e) {

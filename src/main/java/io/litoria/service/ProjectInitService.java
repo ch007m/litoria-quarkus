@@ -15,10 +15,17 @@ import io.litoria.model.ProjectType;
 public class ProjectInitService {
 
     private static final String TEMPLATES_BASE = "templates/";
-    private static final String[] CSS_FILES = {"asciidoctor.css", "font-awesome.min.css", "foundation.css"};
+    private static final String ASCIIDOCTOR_BASE = TEMPLATES_BASE + "asciidoctor/";
+    private static final String MARKDOWN_BASE = TEMPLATES_BASE + "markdown/";
+    private static final String[] ASCIIDOCTOR_CSS = {"asciidoctor.css", "font-awesome.min.css", "foundation.css"};
+    private static final String[] MARKDOWN_CSS = {"report.css", "report-card.css", "report-card-2.css"};
     private static final String[] IMAGE_FILES = {"litoria-chloris.jpg", "quarkus-logo.png"};
 
     public void createProject(ProjectType type, boolean force, String dir) throws IOException {
+        createProject(type, force, dir, false);
+    }
+
+    public void createProject(ProjectType type, boolean force, String dir, boolean markdown) throws IOException {
         Path projectDir = Path.of(dir).toAbsolutePath();
 
         if (Files.exists(projectDir) && !force) {
@@ -31,38 +38,56 @@ public class ProjectInitService {
         }
 
         if (force && Files.isDirectory(projectDir.resolve("source"))) {
-            try (var adocFiles = Files.list(projectDir.resolve("source"))) {
-                adocFiles.filter(p -> p.toString().endsWith(".adoc"))
+            try (var sourceFiles = Files.list(projectDir.resolve("source"))) {
+                sourceFiles.filter(p -> p.toString().endsWith(".adoc") || p.toString().endsWith(".md"))
                         .forEach(p -> { try { Files.delete(p); } catch (IOException ignored) {} });
             }
         }
 
         Files.createDirectories(projectDir);
         Files.createDirectories(projectDir.resolve("source"));
-        Files.createDirectories(projectDir.resolve("source/css"));
-        Files.createDirectories(projectDir.resolve("source/image"));
 
-        copyResource(TEMPLATES_BASE + "config.yml",
+        String engineBase = markdown ? MARKDOWN_BASE : ASCIIDOCTOR_BASE;
+
+        copyResource(engineBase + "config.yml",
                 projectDir.resolve("config.yml"));
 
-        List<String> templates = getTemplatesForType(type);
+        List<String> templates = getTemplatesForType(type, markdown);
         for (String template : templates) {
-            copyResource(TEMPLATES_BASE + template,
+            copyResource(engineBase + template,
                     projectDir.resolve("source/" + template));
         }
 
-        for (String css : CSS_FILES) {
-            copyResource(TEMPLATES_BASE + "css/" + css,
-                    projectDir.resolve("source/css/" + css));
-        }
+        Files.createDirectories(projectDir.resolve("source/css"));
 
-        for (String image : IMAGE_FILES) {
-            copyResource(TEMPLATES_BASE + "image/" + image,
-                    projectDir.resolve("source/image/" + image));
+        if (markdown) {
+            for (String css : MARKDOWN_CSS) {
+                copyResource(MARKDOWN_BASE + "css/" + css,
+                        projectDir.resolve("source/css/" + css));
+            }
+        } else {
+            Files.createDirectories(projectDir.resolve("source/image"));
+
+            for (String css : ASCIIDOCTOR_CSS) {
+                copyResource(ASCIIDOCTOR_BASE + "css/" + css,
+                        projectDir.resolve("source/css/" + css));
+            }
+
+            for (String image : IMAGE_FILES) {
+                copyResource(ASCIIDOCTOR_BASE + "image/" + image,
+                        projectDir.resolve("source/image/" + image));
+            }
         }
     }
 
-    private List<String> getTemplatesForType(ProjectType type) {
+    public List<String> getTemplatesForType(ProjectType type, boolean markdown) {
+        if (markdown) {
+            return switch (type) {
+                case SIMPLE -> List.of("simple.adoc");
+                case REPORT -> List.of("report.md");
+                case SLIDESHOW -> List.of("slideshow.adoc");
+            };
+        }
         return switch (type) {
             case SIMPLE -> List.of("simple.adoc");
             case REPORT -> List.of("minute.adoc", "report.adoc");

@@ -1,12 +1,20 @@
 generator:
-  source: "./source" # directory path or name of the file to be processed
+  engine: "asciidoctor"
+  source: "./source"
   destination: "generated"
   image: "${source}/image" # path to the images directory used to resolve and embed images during generation
 
-  metadata:
-    author: "First & Last Name"
-    email: "user@domain"
-    # date is auto-filled with today's date if not set
+report:
+  author: # your First & Last Name
+  title:  # your company title
+  email:  # your email address
+  # date is auto-filled with today's date if not set
+  signature: "Cheers{break}----{break}{author}{break}{title}"
+
+  mail:
+    from: "{email}"
+    to: "user@domain"
+    subject: "{author}'s weekly report : {date}"
 
 asciidoctor:
   attributes:
@@ -37,7 +45,7 @@ pdf:
 #   requireTLS: true
 #   tls:
 #     rejectUnauthorized: false
-#   user: "your-email@gmail.com"
+#   user: "{email}"
 #   # Auth option 1: App Password (enable 2FA, generate at https://myaccount.google.com/apppasswords)
 #   pass: "your-app-password"
 #   # Auth option 2: OAuth2 (remove pass above and use this section)
@@ -45,10 +53,3 @@ pdf:
 #   #   clientId: "your-client-id"
 #   #   clientSecret: "your-client-secret"
 #   #   refreshToken: "your-refresh-token"
-
-# Mail configuration (used by the 'send' command)
-# mail:
-#   from: "user@domain"
-#   to: "user@domain"
-#   subject: "{author}'s weekly report : {date}"
-#   signature: "Cheers{break}----{break}{author}{break}YOUR_TITLE"
