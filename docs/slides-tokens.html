@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Presentation</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@6.0.1/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@6.0.1/dist/theme/white.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@6.0.1/dist/plugin/highlight/monokai.css">
+    <style>
+@import url('https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;700;900&family=Red+Hat+Text:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+    --r-main-font: 'Red Hat Text', sans-serif;
+    --r-heading-font: 'Red Hat Display', sans-serif;
+    --r-code-font: 'JetBrains Mono', monospace;
+    --r-heading-text-transform: none;
+}
+
+.reveal {
+    font-family: var(--r-main-font);
+    font-size: 32px;
+}
+
+.reveal h1 { font-size: 1.6em; }
+.reveal h2 { font-size: 1.25em; }
+.reveal h3 { font-size: 0.9em; }
+
+.reveal h1, .reveal h2, .reveal h3 {
+    text-transform: none;
+    font-family: var(--r-heading-font);
+}
+
+.reveal section {
+    text-align: left;
+}
+
+.reveal section h1, .reveal section h2, .reveal section h3 {
+    text-align: left;
+}
+
+.reveal ul {
+    font-size: 0.75em;
+}
+
+.reveal li {
+    margin-bottom: 0.3em;
+}
+
+.reveal table {
+    font-size: 0.6em;
+    width: 100%;
+}
+
+.reveal table th {
+    background: rgba(0, 0, 0, 0.04);
+    border-bottom: 2px solid #4695EB;
+    font-family: var(--r-heading-font);
+}
+
+.reveal table td {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/*
+ * Token styles for RevealJS slideshows.
+ *
+ * This file defines CSS classes used by the {token} shorthand syntax.
+ * Token name = CSS class name. If a class exists here, the token works.
+ *
+ * Usage in markdown:
+ *   {blue}text{/blue}        → <span class="blue">text</span>
+ *   {brand-bar}              → <div class="brand-bar"></div>
+ *   {callout-red}text{/callout-red} → <div class="callout red-callout">text</div>
+ *
+ * See aurea-slides-analysis.md for the full token mapping table.
+ */
+
+/* ── Color variables ── */
+
+:root {
+    --quarkus-blue: #4695EB;
+    --spring-green: #6DB33F;
+    --rh-teal: #009596;
+    --rh-red: #EE0000;
+    --rh-orange: #D4874D;
+    --rh-green: #3E8635;
+}
+
+/* ── Inline tokens ── */
+
+.blue { color: var(--quarkus-blue); font-weight: bold; }
+.green { color: var(--spring-green); font-weight: bold; }
+.teal { color: var(--rh-teal); font-weight: bold; }
+.red { color: var(--rh-red); font-weight: bold; }
+.orange { color: var(--rh-orange); font-weight: bold; }
+.pass { color: var(--rh-green); font-weight: bold; }
+.fail { color: var(--rh-red); font-weight: bold; }
+.best { color: var(--rh-teal); font-weight: bold; }
+.highlight { color: #1a1a2e; font-weight: bold; }
+.dimmed { color: #8c8c8c; }
+
+/* ── Block tokens ── */
+
+.brand-bar {
+    height: 3px;
+    width: 100%;
+    margin-top: 6px;
+    margin-bottom: 16px;
+    background: linear-gradient(90deg,
+        var(--quarkus-blue) 0%, var(--quarkus-blue) 50%,
+        var(--rh-teal) 50%, var(--rh-teal) 100%);
+    border-radius: 2px;
+}
+
+.subtitle {
+    font-size: 0.75em;
+    color: #666;
+    margin-top: 0;
+}
+
+.supertitle {
+    font-size: 0.5em;
+    color: #8c8c8c;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 0;
+}
+
+.footer {
+    text-align: center;
+    font-size: 0.6em;
+    color: #8c8c8c;
+}
+
+/* ── Callout tokens ── */
+
+.callout {
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 10px 18px;
+    margin-top: 10px;
+    font-size: 0.65em;
+}
+
+.callout.red-callout {
+    background: rgba(238, 0, 0, 0.06);
+    border-color: rgba(238, 0, 0, 0.2);
+}
+
+.callout.teal-callout {
+    background: rgba(0, 149, 150, 0.08);
+    border-color: rgba(0, 149, 150, 0.3);
+}
+
+.callout.green-callout {
+    background: rgba(62, 134, 53, 0.08);
+    border-color: rgba(62, 134, 53, 0.3);
+}
+
+.callout.orange-callout {
+    background: rgba(244, 182, 120, 0.06);
+    border-color: rgba(244, 182, 120, 0.2);
+}
+
+/* ── Flow tokens ── */
+
+.flow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 12px 0;
+}
+
+.flow-step {
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 0.55em;
+    color: #444;
+}
+
+.flow-arrow {
+    color: #8c8c8c;
+    font-size: 0.8em;
+}
+
+/* ── Layout (HTML only — no token equivalent) ── */
+
+.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+}
+
+.three-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px;
+}
+
+/* ── Card (HTML only) ── */
+
+.card {
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    padding: 18px;
+}
+
+.card h3 {
+    font-size: 0.85em;
+    margin-bottom: 8px;
+    color: #1a1a2e;
+}
+
+.card p, .card li {
+    font-size: 0.78em;
+}
+
+.card.spring { border-left: 4px solid var(--spring-green); }
+.card.quarkus { border-left: 4px solid var(--quarkus-blue); }
+.card.ibm { border-left: 4px solid var(--rh-teal); }
+.card.ask { border-left: 4px solid var(--rh-red); }
+.card.mtool { border-left: 4px solid var(--rh-orange); }
+
+/* ── Stat row (HTML only) ── */
+
+.stat-row {
+    display: flex;
+    gap: 20px;
+    text-align: center;
+    margin: 16px 0;
+}
+
+.stat {
+    flex: 1;
+}
+
+.stat .number {
+    font-family: var(--r-heading-font);
+    font-size: 1.5em;
+    font-weight: 900;
+    color: #1a1a2e;
+}
+
+.stat .label {
+    font-size: 0.45em;
+    color: #8c8c8c;
+}
+
+/* ── Person (HTML only) ── */
+
+.person {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.person-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.04);
+    border: 2px solid var(--quarkus-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9em;
+    font-weight: 900;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.person-info h3 {
+    font-size: 0.85em;
+    margin-bottom: 2px;
+}
+
+.person-info p {
+    font-size: 0.6em;
+    color: #666;
+    margin: 2px 0;
+}
+
+/* ── Legend (HTML only) ── */
+
+.legend {
+    display: flex;
+    gap: 16px;
+    font-size: 0.5em;
+    margin-bottom: 6px;
+}
+
+.legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+/* ── Comparison (HTML only) ── */
+
+.comparison-row {
+    display: flex;
+    gap: 20px;
+    margin-top: 12px;
+}
+
+.comparison-col {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.comparison-col h3 {
+    font-size: 0.65em;
+    margin-bottom: 8px;
+}
+
+.comparison-col li {
+    font-size: 0.55em;
+    margin-bottom: 3px;
+}
+
+    </style>
+</head>
+<body>
+<div class="reveal">
+    <div class="slides">
+        <section data-markdown data-separator="^---$" data-separator-vertical="^--$" data-separator-notes="^Note:">
+            <textarea data-template>
+<div class="brand-bar"></div>
+<p class="supertitle">Conference Name</p>
+
+# My Presentation
+
+<p class="subtitle">A brief description of what this talk covers</p>
+
+<p class="footer">Your Name &middot; 8/17/2026</p>
+
+--
+
+### Structure Tokens — syntax
+
+<pre><code class="language-markdown" data-trim data-noescape>
+{brand-bar}
+{supertitle}Conference Name{/supertitle}
+
+# My Presentation
+
+{subtitle}A brief description{/subtitle}
+
+{footer}Your Name &amp;middot; 8/17/2026{/footer}
+</code></pre>
+
+---
+
+## Inline Colors
+
+<div class="brand-bar"></div>
+
+- <span class="blue">Quarkus blue</span> for primary emphasis
+- <span class="green">Spring green</span> for secondary emphasis
+- <span class="teal">Red Hat teal</span> for accents
+
+--
+
+### Inline Colors — syntax
+
+<pre><code class="language-markdown" data-trim data-noescape>
+{blue}Quarkus blue{/blue} for primary emphasis
+{green}Spring green{/green} for secondary emphasis
+{teal}Red Hat teal{/teal} for accents
+</code></pre>
+
+---
+
+## More Colors
+
+<div class="brand-bar"></div>
+
+- <span class="red">Red</span> for warnings or alerts
+- <span class="orange">Orange</span> for highlights
+- <span class="highlight">Bold highlight</span> for key points
+- <span class="dimmed">Dimmed text</span> for secondary details
+
+--
+
+### More Colors — syntax
+
+<pre><code class="language-markdown" data-trim data-noescape>
+{red}Red{/red} for warnings or alerts
+{orange}Orange{/orange} for highlights
+{highlight}Bold highlight{/highlight} for key points
+{dimmed}Dimmed text{/dimmed} for secondary details
+</code></pre>
+
+---
+
+## Table
+
+<div class="brand-bar"></div>
+
+| Criteria  | Project A         | Project B         |
+|-----------|-------------------|-------------------|
+| Tests     | <span class="green">Pass</span> | <span class="red">Fail</span>  |
+| Perf      | <span class="teal">Best</span>   | <span class="green">Pass</span> |
+| Coverage  | <span class="green">92%</span>  | <span class="red">41%</span>   |
+
+--
+
+### Table — syntax
+
+<pre><code class="language-markdown" data-trim data-noescape>
+| Criteria  | Project A           | Project B          |
+|-----------|---------------------|--------------------|
+| Tests     | {green}Pass{/green}  | {red}Fail{/red}   |
+| Perf      | {teal}Best{/teal}    | {green}Pass{/green}|
+</code></pre>
+
+---
+
+## Two Columns
+
+<div class="brand-bar"></div>
+<p class="subtitle">Side-by-side layout</p>
+
+<div class="two-col" style="margin-top: 16px;">
+<div>
+
+### Left column
+
+- <span class="highlight">First point</span> &middot; with context
+- <span class="highlight">Second point</span> &middot; more detail
+- <span class="highlight">Third point</span> &middot; additional info
+
+</div>
+<div>
+
+### Right column
+
+- <span class="red">Warning item</span>
+- A medium task takes <span class="highlight">2-4 weeks</span>
+- Hard to estimate ROI
+- Teams defer &rarr; technical debt grows
+
+</div>
+</div>
+
+--
+
+### Two Columns — syntax
+
+<pre><code class="language-markdown" data-trim data-noescape>
+&lt;div class="two-col"&gt;
+&lt;div&gt;
+
+### Left column
+
+- {highlight}First point{/highlight}
+- {highlight}Second point{/highlight}
+
+&lt;/div&gt;
+&lt;div&gt;
+
+### Right column
+
+- {red}Warning item{/red}
+- Another point
+
+&lt;/div&gt;
+&lt;/div&gt;
+</code></pre>
+
+Note:
+The two-col layout uses CSS grid. It stays as HTML because it needs child structure.
+A three-col variant is also available: `<div class="three-col">`.
+
+---
+
+## Callouts
+
+<div class="brand-bar"></div>
+
+<div class="callout">Default callout — neutral gray border.</div>
+
+<div class="callout teal-callout">Teal callout — tips and recommendations.</div>
+
+<div class="callout red-callout">Red callout — warnings and breaking changes.</div>
+
+--
+
+### Callouts — syntax
+
+<pre><code class="language-markdown" data-trim data-noescape>
+{callout}Default callout — neutral gray border.{/callout}
+{callout-teal}Teal callout — tips.{/callout-teal}
+{callout-red}Red callout — warnings.{/callout-red}
+{callout-orange}Orange callout — notices.{/callout-orange}
+</code></pre>
+
+---
+
+## Flow Diagram
+
+<div class="brand-bar"></div>
+
+<div class="flow" style="justify-content: center;">
+<span class="flow-step">Design</span>
+<span class="flow-arrow">&rarr;</span>
+<span class="flow-step">Implement</span>
+<span class="flow-arrow">&rarr;</span>
+<span class="flow-step">Test</span>
+<span class="flow-arrow">&rarr;</span>
+<span class="flow-step">Deploy</span>
+</div>
+
+--
+
+### Flow Diagram — syntax
+
+<pre><code class="language-markdown" data-trim data-noescape>
+&lt;div class="flow" style="justify-content: center;"&gt;
+{flow-step}Design{/flow-step}
+{flow-arrow}
+{flow-step}Implement{/flow-step}
+&lt;/div&gt;
+</code></pre>
+
+---
+
+## Image
+
+<div class="brand-bar"></div>
+
+<div style="text-align: center;"><img src="image/quarkus.png" alt="" style="max-width: 60%;"></div>
+
+--
+
+### Image — syntax
+
+<pre><code class="language-markdown" data-trim data-noescape>
+{img src="image/quarkus.png" width="60%" center}
+</code></pre>
+
+Note:
+Parameters: src (required), width, alt, center/right/left, rounded
+
+---
+
+## Code
+
+<div class="brand-bar"></div>
+
+<pre><code class="language-java" data-trim data-noescape>
+@Path("/hello")
+public class GreetingResource {
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return "Hello from Quarkus!";
+    }
+}
+</code></pre>
+
+Note:
+Use fenced code blocks with a language tag for syntax highlighting.
+
+---
+
+## Video
+
+<div class="brand-bar"></div>
+
+<div style="text-align: center;"><video controls src="image/your-video.mp4" style="max-width: 90%; border-radius: 8px;"></video></div>
+
+--
+
+### Video — syntax
+
+<pre><code class="language-markdown" data-trim data-noescape>
+{video src="image/demo.mp4" controls width="90%" center rounded}
+</code></pre>
+
+Note:
+Parameters: src (required), controls, autoplay, loop, muted, width, center/right/left, rounded
+
+---
+
+## Summary
+
+<div class="brand-bar"></div>
+
+- Point 1 &middot; tested and validated
+- Point 2 &middot; ready for production
+- Next step: your feedback
+
+<p class="footer">Your Name &middot; 8/17/2026</p>
+
+---
+
+## Questions?
+
+<div class="brand-bar"></div>
+
+<p class="footer">Your Name &middot; 8/17/2026</p>
+
+Note:
+Thank the audience and open for questions.
+
+            </textarea>
+        </section>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@6.0.1/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@6.0.1/dist/plugin/highlight.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@6.0.1/dist/plugin/markdown.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@6.0.1/dist/plugin/notes.js"></script>
+<script>
+    Reveal.initialize({
+        hash: true,
+        slideNumber: true,
+        transition: 'slide',
+        width: 1280,
+        height: 800,
+        margin: 0.04,
+        plugins: [RevealMarkdown, RevealHighlight, RevealNotes]
+    });
+</script>
+</body>
+</html>

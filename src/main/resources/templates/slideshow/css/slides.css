@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;700;900&family=Red+Hat+Text:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+    --r-main-font: 'Red Hat Text', sans-serif;
+    --r-heading-font: 'Red Hat Display', sans-serif;
+    --r-code-font: 'JetBrains Mono', monospace;
+    --r-heading-text-transform: none;
+}
+
+.reveal {
+    font-family: var(--r-main-font);
+    font-size: 32px;
+}
+
+.reveal h1 { font-size: 1.6em; }
+.reveal h2 { font-size: 1.25em; }
+.reveal h3 { font-size: 0.9em; }
+
+.reveal h1, .reveal h2, .reveal h3 {
+    text-transform: none;
+    font-family: var(--r-heading-font);
+}
+
+.reveal section {
+    text-align: left;
+}
+
+.reveal section h1, .reveal section h2, .reveal section h3 {
+    text-align: left;
+}
+
+.reveal ul {
+    font-size: 0.75em;
+}
+
+.reveal li {
+    margin-bottom: 0.3em;
+}
+
+.reveal table {
+    font-size: 0.6em;
+    width: 100%;
+}
+
+.reveal table th {
+    background: rgba(0, 0, 0, 0.04);
+    border-bottom: 2px solid #4695EB;
+    font-family: var(--r-heading-font);
+}
+
+.reveal table td {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}

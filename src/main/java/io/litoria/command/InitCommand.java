@@ -27,6 +27,11 @@ public class InitCommand implements Command<CommandInvocation> {
             defaultValue = "markdown")
     private String engine;
 
+    @Option(shortName = 'l', name = "flavor",
+            description = "Slideshow flavor: default or tokens",
+            defaultValue = "default")
+    private String flavor;
+
     @Argument(description = "Project directory path (defaults to current directory)")
     private String projectDir;
 
@@ -37,11 +42,6 @@ public class InitCommand implements Command<CommandInvocation> {
     public CommandResult execute(CommandInvocation invocation) {
         ProjectType projectType = ProjectType.fromString(type);
 
-        if (projectType == ProjectType.SLIDESHOW) {
-            invocation.println("Slideshow project type will be supported in a future release.");
-            return CommandResult.FAILURE;
-        }
-
         if (projectDir == null || projectDir.isBlank()) {
             invocation.println("Project directory path is required. Example: litoria init /tmp/my-project");
             return CommandResult.FAILURE;
@@ -51,9 +51,15 @@ public class InitCommand implements Command<CommandInvocation> {
         invocation.println("Type selected: " + projectType.getValue());
         invocation.println("Engine: " + (markdown ? "markdown" : "asciidoctor"));
 
+        boolean useTokens = "tokens".equalsIgnoreCase(flavor);
+
         try {
-            initService.createProject(projectType, force, projectDir, markdown);
+            initService.createProject(projectType, force, projectDir, markdown, useTokens);
             invocation.println("Project " + projectDir + " successfully created.");
+            if (projectType == ProjectType.SLIDESHOW) {
+                invocation.println("\nTo generate slides:");
+                invocation.println("  litoria generate -r revealjs " + projectDir);
+            }
             return CommandResult.SUCCESS;
         } catch (Exception e) {
             invocation.println("Error: " + e.getMessage());

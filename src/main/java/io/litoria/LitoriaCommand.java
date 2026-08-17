@@ -12,14 +12,17 @@ import org.aesh.command.invocation.CommandInvocation;
 import io.litoria.command.GenerateCommand;
 import io.litoria.command.InitCommand;
 import io.litoria.command.SendCommand;
+import io.litoria.command.ServeCommand;
 
 @CommandDefinition(
         name = "litoria",
-        description = "Content management tool to generate HTML/PDF from AsciiDoc or Markdown",
+        description = "Content management tool to generate HTML, PDF, and RevealJS slideshows from AsciiDoc or Markdown, and send reports via email",
+        generateHelp = true,
         groupCommands = {
                 InitCommand.class,
                 GenerateCommand.class,
-                SendCommand.class
+                SendCommand.class,
+                ServeCommand.class
         })
 public class LitoriaCommand implements GroupCommand<CommandInvocation> {
 
