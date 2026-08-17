@@ -1,5 +1,9 @@
 ---
 title: Litoria Quarkus
+description: CLI tool to generate HTML, PDF, and RevealJS slideshows from AsciiDoc or Markdown, and send reports via email
+name: Litoria Quarkus
+simple-name: Litoria
+social-github: ch007m/litoria-quarkus
 layout: page
 ---
 
