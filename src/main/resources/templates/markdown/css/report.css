@@ -76,15 +76,11 @@ img {
     max-width: 25%;
 }
 
-li > p {
-    display: flex;
-    align-items: center;
-}
-
 li img {
-    height: 1em;
+    max-height: 1em;
     width: auto;
     max-width: none;
+    vertical-align: middle;
     margin-left: 6px;
     margin-right: 4px;
 }
