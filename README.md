@@ -1,14 +1,12 @@
-# <img src="src/main/resources/templates/asciidoctor/image/litoria-chloris.jpg" width="80"> litoria-quarkus
+# <img src="src/main/resources/templates/asciidoctor/image/litoria-chloris.jpg" width="80"> Quarkus litoria reporting tool and more
 
 Command Line Tool to manage AsciiDoc and Markdown projects (create, generate HTML content), embed CSS & images, and send reports as email — built on [Quarkus](https://quarkus.io/) with [Aesh](https://quarkus.io/guides/aesh).
 
-|                 | Project Info                                        |
-| --------------- |-----------------------------------------------------|
-| License:        | Apache-2.0                                          |
-| Build:          | Maven                                               |
-| Documentation:  | N/A                                                 |
-| Issue tracker:  | https://github.com/ch007m/litoria-quarkus/issues    |
-| Engines:        | Java >= 21                                          |
+|                | Project Info                                        |
+|----------------|-----------------------------------------------------|
+| License:       | Apache-2.0                                          |
+| Issue tracker: | https://github.com/ch007m/litoria-quarkus/issues    |
+| JDK:           | Java >= 21                                          |
 
 ## Installation
 
