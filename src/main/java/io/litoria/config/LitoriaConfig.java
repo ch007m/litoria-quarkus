@@ -55,30 +55,7 @@ public interface LitoriaConfig {
     }
 
     interface SmtpConfig {
-        @WithDefault("smtp.gmail.com")
-        String host();
-
-        @WithDefault("587")
-        int port();
-
-        @WithDefault("false")
-        boolean secure();
-
-        @WithDefault("true")
-        boolean requireTls();
-
-        TlsConfig tls();
-
-        Optional<String> user();
-
-        Optional<String> pass();
-
         Oauth2Config oauth2();
-
-        interface TlsConfig {
-            @WithDefault("false")
-            boolean rejectUnauthorized();
-        }
 
         interface Oauth2Config {
             Optional<String> clientId();

@@ -14,26 +14,24 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import jakarta.activation.DataHandler;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.mail.Authenticator;
-import jakarta.mail.Message;
-import jakarta.mail.MessagingException;
-import jakarta.mail.PasswordAuthentication;
-import jakarta.mail.Session;
-import jakarta.mail.Transport;
-import jakarta.mail.internet.InternetAddress;
-import jakarta.mail.internet.MimeBodyPart;
-import jakarta.mail.internet.MimeMessage;
-import jakarta.mail.internet.MimeMultipart;
-import jakarta.mail.util.ByteArrayDataSource;
+
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.litoria.config.LitoriaConfig;
+import io.quarkus.mailer.Mail;
+import io.quarkus.mailer.Mailer;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.ext.mail.MailAttachment;
+import io.vertx.ext.mail.MailConfig;
+import io.vertx.ext.mail.MailMessage;
+import io.vertx.ext.mail.StartTLSOptions;
+import io.vertx.mutiny.core.Vertx;
+import io.vertx.mutiny.ext.mail.MailClient;
 
 @ApplicationScoped
 public class EmailService {
@@ -45,51 +43,58 @@ public class EmailService {
             "\"access_token\"\\s*:\\s*\"([^\"]+)\"");
 
     @Inject
+    Mailer mailer;
+
+    @Inject
+    Vertx vertx;
+
+    @Inject
     LitoriaConfig config;
 
-    public void sendEmail(String projectDir, String fileName, Map<String, String> metadata)
-            throws MessagingException, IOException {
-        LitoriaConfig.SmtpConfig smtpConfig = config.smtp();
+    @ConfigProperty(name = "quarkus.mailer.host", defaultValue = "localhost")
+    String mailHost;
 
+    @ConfigProperty(name = "quarkus.mailer.port", defaultValue = "25")
+    int mailPort;
+
+    @ConfigProperty(name = "quarkus.mailer.start-tls", defaultValue = "DISABLED")
+    String mailStartTls;
+
+    @ConfigProperty(name = "quarkus.mailer.trust-all", defaultValue = "false")
+    boolean mailTrustAll;
+
+    @ConfigProperty(name = "quarkus.mailer.username")
+    java.util.Optional<String> mailUsername;
+
+    public void sendEmail(String projectDir, String fileName, Map<String, String> metadata)
+            throws IOException {
         Map<String, String> resolvedMetadata = new HashMap<>(metadata);
         if (!resolvedMetadata.containsKey("date")) {
             resolvedMetadata.put("date", LocalDate.now().format(DateTimeFormatter.ofPattern("M/d/yyyy")));
         }
 
-        String smtpUser = smtpConfig.user()
-                .filter(u -> !u.isBlank())
-                .orElse(resolvedMetadata.getOrDefault("email", ""));
         String to = config.report().mail().to()
                 .filter(t -> !t.isBlank())
                 .map(t -> resolveTemplate(t, resolvedMetadata))
                 .orElse(resolvedMetadata.getOrDefault("to", ""));
         String from = resolveTemplate(config.report().mail().from(), resolvedMetadata);
 
-        LOG.debugf("SMTP host: %s", smtpConfig.host());
-        LOG.debugf("SMTP port: %d", smtpConfig.port());
-        LOG.debugf("SMTP user: %s", smtpUser);
-        LOG.debugf("SMTP pass: %s", smtpConfig.pass().map(p -> p.isBlank() ? "<blank>" : "****").orElse("<not set>"));
-        LOG.debugf("SMTP oauth2.clientId: %s", smtpConfig.oauth2().clientId().map(v -> v.isBlank() ? "<blank>" : "****").orElse("<not set>"));
-        LOG.debugf("OAuth2 detected: %s", isOAuth2(smtpConfig));
         LOG.debugf("From: %s", from);
         LOG.debugf("To: %s", to);
 
-        if (smtpUser.isBlank()) {
-            throw new MessagingException(
-                    "SMTP user not configured. Set 'email' in frontmatter or LITORIA_SMTP_USER env var.");
+        if (from.isBlank() || from.contains("{")) {
+            throw new IOException(
+                    "Sender address not configured. Set 'email' in frontmatter or quarkus.mailer.from.");
         }
 
         if (to.isBlank()) {
-            throw new MessagingException("Recipient 'to' address not configured. "
-                    + "Set 'to' in frontmatter or LITORIA_SMTP_USER env var.");
+            throw new IOException("Recipient 'to' address not configured. "
+                    + "Set 'to' in frontmatter or litoria.report.mail.to.");
         }
 
         String subjectTemplate = resolvedMetadata.getOrDefault("subject",
                 config.report().mail().subject().orElse("{author}'s weekly report : {date}"));
         String subject = resolveTemplate(subjectTemplate, resolvedMetadata);
-
-        Properties props = buildSmtpProperties(smtpConfig);
-        Session session = createSession(props, smtpConfig, smtpUser);
 
         String htmlBody;
         Path embeddedFile = findHtmlFile(projectDir, fileName);
@@ -112,33 +117,14 @@ public class EmailService {
         signature = signature.replace("\n", "<br/>");
         htmlBody += "<br/><hr style=\"border:none;border-top:1px solid #ccc;margin:1em 0\"/>" + signature;
 
-        MimeMessage message = new MimeMessage(session);
-        message.setFrom(new InternetAddress(from));
-        message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to));
-        message.setSubject(subject);
-
         List<CidImage> cidImages = new ArrayList<>();
         htmlBody = convertDataUrisToCid(htmlBody, cidImages);
 
-        if (cidImages.isEmpty()) {
-            message.setContent(htmlBody, "text/html; charset=UTF-8");
+        if (isOAuth2()) {
+            sendWithOAuth2(from, to, subject, htmlBody, cidImages);
         } else {
-            MimeMultipart multipart = new MimeMultipart("related");
-            MimeBodyPart htmlPart = new MimeBodyPart();
-            htmlPart.setContent(htmlBody, "text/html; charset=UTF-8");
-            multipart.addBodyPart(htmlPart);
-            for (CidImage cid : cidImages) {
-                MimeBodyPart imagePart = new MimeBodyPart();
-                imagePart.setDataHandler(new DataHandler(
-                        new ByteArrayDataSource(cid.data, cid.mimeType)));
-                imagePart.setHeader("Content-ID", "<" + cid.id + ">");
-                imagePart.setDisposition(MimeBodyPart.INLINE);
-                multipart.addBodyPart(imagePart);
-            }
-            message.setContent(multipart);
+            sendWithMailer(from, to, subject, htmlBody, cidImages);
         }
-
-        Transport.send(message);
     }
 
     public String resolveHtmlFile(String projectDir, String fileName) {
@@ -150,60 +136,66 @@ public class EmailService {
         }
     }
 
-    private boolean isOAuth2(LitoriaConfig.SmtpConfig smtpConfig) {
-        LitoriaConfig.SmtpConfig.Oauth2Config oauth2 = smtpConfig.oauth2();
+    private void sendWithMailer(String from, String to, String subject, String htmlBody, List<CidImage> cidImages) {
+        Mail mail = Mail.withHtml(to, subject, htmlBody).setFrom(from);
+        for (CidImage cid : cidImages) {
+            mail.addInlineAttachment(cid.id() + extensionForMimeType(cid.mimeType()), cid.data(), cid.mimeType(), "<" + cid.id() + ">");
+        }
+        mailer.send(mail);
+    }
+
+    private void sendWithOAuth2(String from, String to, String subject, String htmlBody, List<CidImage> cidImages)
+            throws IOException {
+        LitoriaConfig.SmtpConfig.Oauth2Config oauth2 = config.smtp().oauth2();
+        String accessToken = fetchAccessToken(
+                oauth2.clientId().get(),
+                oauth2.clientSecret().get(),
+                oauth2.refreshToken().get());
+
+        String username = mailUsername.filter(u -> !u.isBlank()).orElse(from);
+
+        MailConfig mailConfig = new MailConfig()
+                .setHostname(mailHost)
+                .setPort(mailPort)
+                .setStarttls(StartTLSOptions.valueOf(mailStartTls.toUpperCase()))
+                .setTrustAll(mailTrustAll)
+                .setAuthMethods("XOAUTH2")
+                .setUsername(username)
+                .setPassword(accessToken);
+
+        MailClient client = MailClient.create(vertx, mailConfig);
+        try {
+            MailMessage message = new MailMessage()
+                    .setFrom(from)
+                    .setTo(List.of(to))
+                    .setSubject(subject)
+                    .setHtml(htmlBody);
+
+            if (!cidImages.isEmpty()) {
+                List<MailAttachment> attachments = new ArrayList<>();
+                for (CidImage cid : cidImages) {
+                    MailAttachment att = MailAttachment.create()
+                            .setContentType(cid.mimeType())
+                            .setContentId("<" + cid.id() + ">")
+                            .setData(Buffer.buffer(cid.data()))
+                            .setDisposition("inline")
+                            .setName(cid.id() + extensionForMimeType(cid.mimeType()));
+                    attachments.add(att);
+                }
+                message.setInlineAttachment(attachments);
+            }
+
+            client.sendMail(message).await().indefinitely();
+        } finally {
+            client.close().await().indefinitely();
+        }
+    }
+
+    private boolean isOAuth2() {
+        LitoriaConfig.SmtpConfig.Oauth2Config oauth2 = config.smtp().oauth2();
         return oauth2.clientId().isPresent() && !oauth2.clientId().get().isBlank()
                 && oauth2.clientSecret().isPresent() && !oauth2.clientSecret().get().isBlank()
                 && oauth2.refreshToken().isPresent() && !oauth2.refreshToken().get().isBlank();
-    }
-
-    private Properties buildSmtpProperties(LitoriaConfig.SmtpConfig smtpConfig) {
-        Properties props = new Properties();
-        props.put("mail.smtp.host", smtpConfig.host());
-        props.put("mail.smtp.port", String.valueOf(smtpConfig.port()));
-
-        if (smtpConfig.secure()) {
-            props.put("mail.smtp.ssl.enable", "true");
-        }
-
-        if (smtpConfig.requireTls()) {
-            props.put("mail.smtp.starttls.enable", "true");
-            props.put("mail.smtp.starttls.required", "true");
-        }
-
-        if (!smtpConfig.tls().rejectUnauthorized()) {
-            props.put("mail.smtp.ssl.trust", "*");
-        }
-
-        props.put("mail.smtp.auth", "true");
-
-        if (isOAuth2(smtpConfig)) {
-            props.put("mail.smtp.auth.mechanisms", "XOAUTH2");
-        }
-
-        return props;
-    }
-
-    private Session createSession(Properties props, LitoriaConfig.SmtpConfig smtpConfig, String smtpUser) throws IOException {
-        String user = smtpUser;
-
-        String password;
-        if (isOAuth2(smtpConfig)) {
-            password = fetchAccessToken(
-                    smtpConfig.oauth2().clientId().get(),
-                    smtpConfig.oauth2().clientSecret().get(),
-                    smtpConfig.oauth2().refreshToken().get());
-        } else {
-            password = smtpConfig.pass().orElse("");
-        }
-
-        String authPassword = password;
-        return Session.getInstance(props, new Authenticator() {
-            @Override
-            protected PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(user, authPassword);
-            }
-        });
     }
 
     private String fetchAccessToken(String clientId, String clientSecret, String refreshToken) throws IOException {
@@ -349,6 +341,17 @@ public class EmailService {
         }
         m.appendTail(sb);
         return sb.toString();
+    }
+
+    private static String extensionForMimeType(String mimeType) {
+        return switch (mimeType) {
+            case "image/png" -> ".png";
+            case "image/jpeg" -> ".jpg";
+            case "image/gif" -> ".gif";
+            case "image/svg+xml" -> ".svg";
+            case "image/webp" -> ".webp";
+            default -> ".bin";
+        };
     }
 
     private record CidImage(String id, String mimeType, byte[] data) {}

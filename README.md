@@ -154,8 +154,8 @@ Additional SMTP properties can be overridden if needed:
 |----------------------------------------|------------------|----------------------------|
 | `LITORIA_SMTP_HOST`                    |`smtp.gmail.com`  | SMTP server hostname       |
 | `LITORIA_SMTP_PORT`                    | `587`            | SMTP port                  |
-| `LITORIA_SMTP_USER`                    | —                | SMTP username              |
-| `LITORIA_SMTP_PASS`                    | —                | App password               |
+| `LITORIA_SMTP_USER`                    | —                | SMTP username (must be the email address used to create the OAuth2 Client ID) |
+| `LITORIA_SMTP_PASS`                    | —                | App password (only needed when OAuth2 is not used) |
 | `LITORIA_SMTP_OAUTH2_CLIENT_ID`        | —                | OAuth2 Client ID           |
 | `LITORIA_SMTP_OAUTH2_CLIENT_SECRET`    | —                | OAuth2 Client Secret       |
 | `LITORIA_SMTP_OAUTH2_REFRESH_TOKEN`    | —                | OAuth2 Refresh Token       |
@@ -163,7 +163,7 @@ Additional SMTP properties can be overridden if needed:
 **Gmail authentication** (see [nodemailer Gmail guide](https://nodemailer.com/guides/using-gmail)):
 
 * **App Password** (simpler): Enable 2-Step Verification, then generate an app password at https://myaccount.google.com/apppasswords. Set `LITORIA_SMTP_USER` and `LITORIA_SMTP_PASS`.
-* **OAuth2** (recommended): Set `LITORIA_SMTP_USER`, `LITORIA_SMTP_OAUTH2_CLIENT_ID`, `LITORIA_SMTP_OAUTH2_CLIENT_SECRET`, and `LITORIA_SMTP_OAUTH2_REFRESH_TOKEN`.
+* **OAuth2** (recommended): Set `LITORIA_SMTP_USER`, `LITORIA_SMTP_OAUTH2_CLIENT_ID`, `LITORIA_SMTP_OAUTH2_CLIENT_SECRET`, and `LITORIA_SMTP_OAUTH2_REFRESH_TOKEN`. See [Sending mail with Gmail using XOAUTH2](https://masashi-k.blogspot.com/2013/06/sending-mail-with-gmail-using-xoauth2.html) for a step-by-step guide on creating the OAuth2 client and obtaining the refresh token.
 
 ## Commands
 

@@ -4,19 +4,17 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import jakarta.inject.Inject;
-import jakarta.mail.internet.MimeMessage;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import com.icegreen.greenmail.util.GreenMail;
-import com.icegreen.greenmail.util.ServerSetup;
-
+import io.quarkus.mailer.Mail;
+import io.quarkus.mailer.MockMailbox;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
@@ -28,25 +26,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @TestProfile(EmailServiceTest.SmtpTestProfile.class)
 class EmailServiceTest {
 
-    static final int SMTP_PORT = 3025;
-
     @Inject
     EmailService emailService;
 
-    GreenMail greenMail;
+    @Inject
+    MockMailbox mailbox;
 
     @BeforeEach
-    void startSmtp() {
-        greenMail = new GreenMail(new ServerSetup(SMTP_PORT, "localhost", "smtp"));
-        greenMail.setUser("sender@test.com", "sender@test.com", "testpass");
-        greenMail.start();
-    }
-
-    @AfterEach
-    void stopSmtp() {
-        if (greenMail != null) {
-            greenMail.stop();
-        }
+    void clearMailbox() {
+        mailbox.clear();
     }
 
     @Test
@@ -65,13 +53,12 @@ class EmailServiceTest {
 
         emailService.sendEmail(tempDir.toString(), "report", metadata);
 
-        MimeMessage[] received = greenMail.getReceivedMessages();
-        assertThat(received).hasSize(1);
+        List<Mail> sent = mailbox.getMailsSentTo("recipient@test.com");
+        assertThat(sent).hasSize(1);
 
-        MimeMessage msg = received[0];
+        Mail msg = sent.get(0);
         assertThat(msg.getSubject()).isEqualTo("John Doe's weekly report");
-        assertThat(msg.getFrom()[0].toString()).isEqualTo("sender@test.com");
-        assertThat(msg.getAllRecipients()[0].toString()).isEqualTo("recipient@test.com");
+        assertThat(msg.getFrom()).isEqualTo("sender@test.com");
     }
 
     @Test
@@ -89,10 +76,9 @@ class EmailServiceTest {
 
         emailService.sendEmail(tempDir.toString(), "report", metadata);
 
-        MimeMessage msg = greenMail.getReceivedMessages()[0];
-        String body = extractHtmlBody(msg);
-        assertThat(body).contains("Author: Jane Doe");
-        assertThat(body).contains("Title: Architect");
+        Mail msg = mailbox.getMailsSentTo("recipient@test.com").get(0);
+        assertThat(msg.getHtml()).contains("Author: Jane Doe");
+        assertThat(msg.getHtml()).contains("Title: Architect");
     }
 
     @Test
@@ -111,11 +97,33 @@ class EmailServiceTest {
 
         emailService.sendEmail(tempDir.toString(), "report", metadata);
 
-        MimeMessage msg = greenMail.getReceivedMessages()[0];
-        String body = extractHtmlBody(msg);
-        assertThat(body).contains("Cheers");
-        assertThat(body).contains("John Doe");
-        assertThat(body).contains("Engineer");
+        Mail msg = mailbox.getMailsSentTo("recipient@test.com").get(0);
+        assertThat(msg.getHtml()).contains("Cheers");
+        assertThat(msg.getHtml()).contains("John Doe");
+        assertThat(msg.getHtml()).contains("Engineer");
+    }
+
+    @Test
+    void sendEmailConvertsDataUriToInlineAttachmentWithCorrectExtension(@TempDir Path tempDir) throws Exception {
+        Path destDir = tempDir.resolve("generated");
+        Files.createDirectories(destDir);
+        String pngDataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+        Files.writeString(destDir.resolve("report.html"),
+                "<html><body><img src=\"" + pngDataUri + "\"/></body></html>");
+
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("author", "John Doe");
+        metadata.put("email", "sender@test.com");
+        metadata.put("to", "recipient@test.com");
+
+        emailService.sendEmail(tempDir.toString(), "report", metadata);
+
+        Mail msg = mailbox.getMailsSentTo("recipient@test.com").get(0);
+        assertThat(msg.getHtml()).contains("cid:");
+        assertThat(msg.getHtml()).doesNotContain("data:image");
+        assertThat(msg.getAttachments()).hasSize(1);
+        assertThat(msg.getAttachments().get(0).getName()).endsWith(".png");
+        assertThat(msg.getAttachments().get(0).getContentType()).isEqualTo("image/png");
     }
 
     @Test
@@ -134,13 +142,14 @@ class EmailServiceTest {
     }
 
     @Test
-    void sendEmailThrowsWhenSmtpUserAndEmailMissing(@TempDir Path tempDir) {
+    void sendEmailThrowsWhenSenderMissing(@TempDir Path tempDir) {
         Map<String, String> metadata = new HashMap<>();
         metadata.put("to", "recipient@test.com");
 
         assertThatThrownBy(() ->
                 emailService.sendEmail(tempDir.toString(), "report", metadata))
-                .hasMessageContaining("SMTP user");
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("Sender address");
     }
 
     @Test
@@ -159,32 +168,10 @@ class EmailServiceTest {
                 .hasMessageContaining("HTML files");
     }
 
-    private String extractHtmlBody(MimeMessage msg) throws Exception {
-        Object content = msg.getContent();
-        if (content instanceof String) {
-            return (String) content;
-        }
-        if (content instanceof jakarta.mail.Multipart multipart) {
-            for (int i = 0; i < multipart.getCount(); i++) {
-                jakarta.mail.BodyPart part = multipart.getBodyPart(i);
-                if (part.isMimeType("text/html")) {
-                    return (String) part.getContent();
-                }
-            }
-        }
-        return content.toString();
-    }
-
     public static class SmtpTestProfile implements QuarkusTestProfile {
         @Override
         public Map<String, String> getConfigOverrides() {
             return Map.ofEntries(
-                    Map.entry("litoria.smtp.host", "localhost"),
-                    Map.entry("litoria.smtp.port", String.valueOf(SMTP_PORT)),
-                    Map.entry("litoria.smtp.secure", "false"),
-                    Map.entry("litoria.smtp.require-tls", "false"),
-                    Map.entry("litoria.smtp.user", ""),
-                    Map.entry("litoria.smtp.pass", "testpass"),
                     Map.entry("litoria.smtp.oauth2.client-id", ""),
                     Map.entry("litoria.smtp.oauth2.client-secret", ""),
                     Map.entry("litoria.smtp.oauth2.refresh-token", "")

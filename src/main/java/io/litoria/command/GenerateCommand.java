@@ -78,10 +78,8 @@ public class GenerateCommand implements Command<CommandInvocation> {
                 invocation.println("Generating HTML from AsciiDoc files...");
                 asciidocService.convertToHtml(resolvedDir, resolvedDest);
             }
-            invocation.println("HTML generation complete.");
+
             Path outputDir = Path.of(resolvedDir, resolvedDest).normalize().toAbsolutePath();
-            invocation.println("Output: " + outputDir);
-            listHtmlLinks(invocation, outputDir);
 
             if (embed) {
                 String sourceDir = config.generator().source();
@@ -91,10 +89,10 @@ public class GenerateCommand implements Command<CommandInvocation> {
                         .orElse(null);
 
                 invocation.println("Embedding styles and images...");
-                int count = embedHtmlFiles(Path.of(resolvedDir, resolvedDest), resolvedSourceDir, resolvedImageDir);
-                invocation.println(count + " embedded file(s) saved.");
+                embedHtmlFiles(Path.of(resolvedDir, resolvedDest), resolvedSourceDir, resolvedImageDir);
             }
 
+            printSummary(invocation, outputDir);
             return CommandResult.SUCCESS;
         } catch (Exception e) {
             invocation.println("Error: " + e.getMessage());
@@ -143,13 +141,20 @@ public class GenerateCommand implements Command<CommandInvocation> {
         return count;
     }
 
-    private void listHtmlLinks(CommandInvocation invocation, Path outputDir) {
+    private void printSummary(CommandInvocation invocation, Path outputDir) {
         try (Stream<Path> htmlFiles = Files.list(outputDir)
                 .filter(p -> p.toString().endsWith(".html"))
                 .sorted()) {
+            Path cwd = Path.of("").toAbsolutePath();
+            String relativeOutputDir = cwd.relativize(outputDir).toString();
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("\nReport generated here: ").append(outputDir);
             for (Path htmlFile : htmlFiles.toList()) {
-                invocation.println("  -> file://" + htmlFile.toAbsolutePath());
+                sb.append("\n  file://").append(htmlFile.toAbsolutePath());
             }
+            sb.append("\n\nTo send your report: litoria send ").append(relativeOutputDir);
+            invocation.println(sb.toString());
         } catch (IOException ignored) {
         }
     }
