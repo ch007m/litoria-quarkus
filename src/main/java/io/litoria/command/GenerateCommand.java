@@ -111,7 +111,7 @@ public class GenerateCommand implements Command<CommandInvocation> {
                 convertToPdf(outputDir);
             }
 
-            printSummary(invocation, outputDir, isPdf);
+            printSummary(invocation, outputDir, isPdf, isRevealJs);
             return CommandResult.SUCCESS;
         } catch (Exception e) {
             invocation.println("Error: " + e.getMessage());
@@ -172,7 +172,7 @@ public class GenerateCommand implements Command<CommandInvocation> {
         }
     }
 
-    private void printSummary(CommandInvocation invocation, Path outputDir, boolean isPdf) {
+    private void printSummary(CommandInvocation invocation, Path outputDir, boolean isPdf, boolean isRevealJs) {
         String ext = isPdf ? ".pdf" : ".html";
         try (Stream<Path> files = Files.list(outputDir)
                 .filter(p -> p.toString().endsWith(ext))
@@ -185,7 +185,9 @@ public class GenerateCommand implements Command<CommandInvocation> {
             for (Path file : files.toList()) {
                 sb.append("\n  file://").append(file.toAbsolutePath());
             }
-            if (!isPdf) {
+            if (isRevealJs) {
+                sb.append("\n\nTo serve with speaker view: litoria serve ").append(relativeOutputDir);
+            } else if (!isPdf) {
                 sb.append("\n\nTo send your report: litoria send ").append(relativeOutputDir);
             }
             invocation.println(sb.toString());

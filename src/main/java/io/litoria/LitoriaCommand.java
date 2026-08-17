@@ -12,6 +12,7 @@ import org.aesh.command.invocation.CommandInvocation;
 import io.litoria.command.GenerateCommand;
 import io.litoria.command.InitCommand;
 import io.litoria.command.SendCommand;
+import io.litoria.command.ServeCommand;
 
 @CommandDefinition(
         name = "litoria",
@@ -20,7 +21,8 @@ import io.litoria.command.SendCommand;
         groupCommands = {
                 InitCommand.class,
                 GenerateCommand.class,
-                SendCommand.class
+                SendCommand.class,
+                ServeCommand.class
         })
 public class LitoriaCommand implements GroupCommand<CommandInvocation> {
 

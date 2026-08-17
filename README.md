@@ -177,6 +177,7 @@ litoria generate -r pdf --embed /path/to/project # generate embedded PDF
 litoria generate -r revealjs /path/to/slides    # generate RevealJS slides
 litoria generate --embed /path/to/project       # self-contained HTML for email
 litoria send /path/to/project                   # send report via email
+litoria serve /path/to/generated/slides         # serve slides for speaker view
 ```
 
 For the full command reference (options, defaults, arguments), see [docs/commands.md](docs/commands.md).

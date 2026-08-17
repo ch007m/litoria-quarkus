@@ -9,6 +9,7 @@ See [slideshow-tokens.md](slideshow-tokens.md) for the full token reference and 
 ```shell
 litoria init -t slideshow /path/to/slides
 litoria generate -r revealjs /path/to/slides
+litoria serve /path/to/generated/slides
 ```
 
 ## Usage
@@ -93,3 +94,20 @@ Slide Markdown files support a `{token}` shorthand that replaces common HTML/CSS
 Complex layouts (grids, cards, stat rows) remain as HTML.
 
 For the full token reference including all parameters, resolution order, and before/after examples, see [slideshow-tokens.md](slideshow-tokens.md).
+
+## Speaker View
+
+RevealJS includes a [speaker view](https://revealjs.com/speaker-view/) that shows the current slide, next slide, speaker notes, and a timer. It requires HTTP serving (not `file://`).
+
+```shell
+litoria generate -r revealjs /path/to/slides
+litoria serve /path/to/slides/generated/2026-08-17_10-30
+```
+
+Open `http://localhost:8080` and press **S** to open the speaker view.
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-p` / `--port` | `8080` | HTTP port |
+
+Press `Ctrl+C` to stop the server.
