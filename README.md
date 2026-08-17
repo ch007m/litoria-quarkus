@@ -211,6 +211,15 @@ To override the destination directory (no timestamp subfolder), use `-d`:
 litoria generate -d ./custom-output
 ```
 
+To generate a PDF instead of HTML, use the `-r pdf` option:
+
+```shell
+litoria generate -r pdf
+litoria generate -r pdf --embed ./report/quarkus
+```
+
+The PDF is generated from the intermediate HTML using [openhtmltopdf](https://github.com/nicehash/openhtmltopdf). When combined with `--embed`, images and CSS are inlined before PDF conversion, producing a fully self-contained PDF. Both the HTML and PDF files are written to the output directory.
+
 To embed CSS and images as base64 into self-contained HTML after generation, use the `--embed` (`-e`) flag:
 
 ```shell
@@ -271,5 +280,6 @@ For more on native executables, see the [Quarkus Maven tooling guide](https://qu
 | CommonMark (Markdown parser)     | https://github.com/commonmark/commonmark-java              |
 | AsciiDoc processor (AsciidoctorJ)| https://github.com/asciidoctor/asciidoctorj                |
 | HTML parser (Jsoup)              | https://github.com/jhy/jsoup                               |
-| SMTP email (Angus Mail)          | https://eclipse-ee4j.github.io/angus-mail/                 |
+| Quarkus Mailer (SMTP)            | https://quarkus.io/guides/mailer                           |
 | YAML frontmatter (SnakeYAML)     | https://github.com/snakeyaml/snakeyaml                     |
+| PDF generation (openhtmltopdf)   | https://github.com/nicehash/openhtmltopdf                  |

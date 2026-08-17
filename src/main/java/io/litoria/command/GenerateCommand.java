@@ -21,6 +21,7 @@ import io.litoria.config.LitoriaConfig;
 import io.litoria.service.AsciidocService;
 import io.litoria.service.EmbedService;
 import io.litoria.service.MarkdownService;
+import io.litoria.service.PdfService;
 
 @CommandDefinition(name = "generate", description = "Generate the (embedded) HTML")
 public class GenerateCommand implements Command<CommandInvocation> {
@@ -57,16 +58,16 @@ public class GenerateCommand implements Command<CommandInvocation> {
     @Inject
     EmbedService embedService;
 
+    @Inject
+    PdfService pdfService;
+
     @Override
     public CommandResult execute(CommandInvocation invocation) {
         try {
             String resolvedDir = resolveProjectDir(projectDir);
             String resolvedDest = resolveDestination();
 
-            if ("pdf".equalsIgnoreCase(rendering)) {
-                invocation.println("PDF rendering is not yet supported. Use '-r html' for now.");
-                return CommandResult.FAILURE;
-            }
+            boolean isPdf = "pdf".equalsIgnoreCase(rendering);
 
             String engine = config.generator().engine();
             boolean isMarkdown = "markdown".equalsIgnoreCase(engine);
@@ -92,7 +93,12 @@ public class GenerateCommand implements Command<CommandInvocation> {
                 embedHtmlFiles(Path.of(resolvedDir, resolvedDest), resolvedSourceDir, resolvedImageDir);
             }
 
-            printSummary(invocation, outputDir);
+            if (isPdf) {
+                invocation.println("Converting to PDF...");
+                convertToPdf(outputDir);
+            }
+
+            printSummary(invocation, outputDir, isPdf);
             return CommandResult.SUCCESS;
         } catch (Exception e) {
             invocation.println("Error: " + e.getMessage());
@@ -141,19 +147,34 @@ public class GenerateCommand implements Command<CommandInvocation> {
         return count;
     }
 
-    private void printSummary(CommandInvocation invocation, Path outputDir) {
-        try (Stream<Path> htmlFiles = Files.list(outputDir)
+    private void convertToPdf(Path outputDir) throws IOException {
+        List<Path> htmlFiles;
+        try (Stream<Path> files = Files.list(outputDir)
                 .filter(p -> p.toString().endsWith(".html"))
+                .sorted()) {
+            htmlFiles = files.toList();
+        }
+        for (Path htmlFile : htmlFiles) {
+            pdfService.convertHtmlToPdf(htmlFile);
+        }
+    }
+
+    private void printSummary(CommandInvocation invocation, Path outputDir, boolean isPdf) {
+        String ext = isPdf ? ".pdf" : ".html";
+        try (Stream<Path> files = Files.list(outputDir)
+                .filter(p -> p.toString().endsWith(ext))
                 .sorted()) {
             Path cwd = Path.of("").toAbsolutePath();
             String relativeOutputDir = cwd.relativize(outputDir).toString();
 
             StringBuilder sb = new StringBuilder();
             sb.append("\nReport generated here: ").append(outputDir);
-            for (Path htmlFile : htmlFiles.toList()) {
-                sb.append("\n  file://").append(htmlFile.toAbsolutePath());
+            for (Path file : files.toList()) {
+                sb.append("\n  file://").append(file.toAbsolutePath());
             }
-            sb.append("\n\nTo send your report: litoria send ").append(relativeOutputDir);
+            if (!isPdf) {
+                sb.append("\n\nTo send your report: litoria send ").append(relativeOutputDir);
+            }
             invocation.println(sb.toString());
         } catch (IOException ignored) {
         }
