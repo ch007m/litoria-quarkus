@@ -21,6 +21,7 @@ Display this help and exit
 - [**init**](litoria-init.md) -- Create a new project with adoc or markdown files
 - [**generate**](litoria-generate.md) -- Generate HTML, PDF, or RevealJS slideshow from source files
 - [**send**](litoria-send.md) -- Send HTML content as email via SMTP
+- [**serve**](litoria-serve.md) -- Serve generated slides over HTTP for RevealJS speaker view
 
 
 # LITORIA-INIT
@@ -132,5 +133,32 @@ Default: `report`
 ### `<projectDir>`
 
 Project directory path
+
+
+# LITORIA-SERVE
+
+## NAME
+
+litoria serve -- Serve generated slides over HTTP for RevealJS speaker view
+
+## SYNOPSIS
+
+```
+litoria serve [-p=<port>] <directory>
+```
+
+## OPTIONS
+
+### `-p`, `--port=<port>`
+
+HTTP port
+
+Default: `8080`
+
+## ARGUMENTS
+
+### `<directory>`
+
+Directory containing generated slides
 
 
