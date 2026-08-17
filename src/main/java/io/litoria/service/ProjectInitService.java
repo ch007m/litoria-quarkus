@@ -20,16 +20,21 @@ public class ProjectInitService {
     private static final String SLIDESHOW_BASE = TEMPLATES_BASE + "slideshow/";
     private static final String[] ASCIIDOCTOR_CSS = {"font-awesome.min.css"};
     private static final String[] MARKDOWN_CSS = {"report.css"};
-    private static final String[] SLIDESHOW_CSS = {"slides.css"};
+    private static final String[] SLIDESHOW_CSS_DEFAULT = {"slides.css"};
+    private static final String[] SLIDESHOW_CSS_TOKENS = {"slides.css", "tokens.css"};
     private static final String[] ASCIIDOCTOR_IMAGES = {"litoria-chloris.jpg"};
     private static final String[] MARKDOWN_IMAGES = {"quarkus-logo.png"};
-    private static final String[] SLIDESHOW_IMAGES = {};
+    private static final String[] SLIDESHOW_IMAGES = {"quarkus.png"};
 
     public void createProject(ProjectType type, boolean force, String dir) throws IOException {
-        createProject(type, force, dir, false);
+        createProject(type, force, dir, false, false);
     }
 
     public void createProject(ProjectType type, boolean force, String dir, boolean markdown) throws IOException {
+        createProject(type, force, dir, markdown, false);
+    }
+
+    public void createProject(ProjectType type, boolean force, String dir, boolean markdown, boolean useTokens) throws IOException {
         Path projectDir = Path.of(dir).toAbsolutePath();
 
         if (Files.exists(projectDir) && !force) {
@@ -58,7 +63,7 @@ public class ProjectInitService {
 
         if (isSlideshow) {
             engineBase = SLIDESHOW_BASE;
-            cssFiles = SLIDESHOW_CSS;
+            cssFiles = useTokens ? SLIDESHOW_CSS_TOKENS : SLIDESHOW_CSS_DEFAULT;
             imageFiles = SLIDESHOW_IMAGES;
         } else if (markdown) {
             engineBase = MARKDOWN_BASE;
@@ -70,7 +75,7 @@ public class ProjectInitService {
             imageFiles = ASCIIDOCTOR_IMAGES;
         }
 
-        List<String> templates = getTemplatesForType(type, markdown);
+        List<String> templates = getTemplatesForType(type, markdown, useTokens);
         for (String template : templates) {
             copyResource(engineBase + template,
                     projectDir.resolve("source/" + template));
@@ -89,9 +94,11 @@ public class ProjectInitService {
         }
     }
 
-    public List<String> getTemplatesForType(ProjectType type, boolean markdown) {
+    public List<String> getTemplatesForType(ProjectType type, boolean markdown, boolean useTokens) {
         if (type == ProjectType.SLIDESHOW) {
-            return List.of("slides.md");
+            return useTokens
+                    ? List.of("slides.md", "slides-tokens.md")
+                    : List.of("slides.md");
         }
         if (markdown) {
             return switch (type) {

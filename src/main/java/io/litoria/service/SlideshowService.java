@@ -21,6 +21,7 @@ import io.litoria.config.LitoriaConfig;
 public class SlideshowService {
 
     private static final String DEFAULT_CSS_RESOURCE = "templates/slideshow/css/slides.css";
+    private static final String DEFAULT_TOKENS_CSS_RESOURCE = "templates/slideshow/css/tokens.css";
     private static final String REVEALJS_VERSION = "6.0.1";
 
     @Inject
@@ -28,6 +29,9 @@ public class SlideshowService {
 
     @Inject
     FrontmatterService frontmatterService;
+
+    @Inject
+    TokenService tokenService;
 
     public Map<String, String> convertToHtml(String projectDir, String destination) throws IOException {
         return convertToHtml(projectDir, destination, "white");
@@ -76,6 +80,7 @@ public class SlideshowService {
 
         String markdown = frontmatterService.stripFrontmatter(rawMarkdown);
         markdown = resolveMetadata(markdown, resolvedMetadata);
+        markdown = tokenService.resolveTokens(markdown);
 
         String title = resolvedMetadata.getOrDefault("title", "Presentation");
         String fullHtml = wrapInRevealJsDocument(markdown, title, css, theme);
@@ -85,16 +90,32 @@ public class SlideshowService {
     }
 
     private String loadCss(String projectDir) throws IOException {
+        String baseCss = loadCssFile(projectDir, "slides.css", DEFAULT_CSS_RESOURCE);
+        String tokensCss = loadCssFile(projectDir, "tokens.css", DEFAULT_TOKENS_CSS_RESOURCE);
+        if (tokensCss != null) {
+            return baseCss + "\n" + tokensCss;
+        }
+        return baseCss;
+    }
+
+    private String loadCssFile(String projectDir, String fileName, String defaultResource) throws IOException {
+        Path sourceDir = Path.of(projectDir, config.generator().source());
+        Path externalCss = sourceDir.resolve("css/" + fileName);
+        if (Files.exists(externalCss)) {
+            return Files.readString(externalCss);
+        }
         if (config.generator().css().isPresent()) {
-            Path externalCss = Path.of(projectDir, config.generator().css().get());
-            if (Files.exists(externalCss)) {
-                return Files.readString(externalCss);
+            Path configCss = Path.of(projectDir, config.generator().css().get());
+            Path configFile = configCss.getParent() != null
+                    ? configCss.getParent().resolve(fileName) : Path.of(fileName);
+            if (Files.exists(configFile)) {
+                return Files.readString(configFile);
             }
         }
         try (InputStream is = Thread.currentThread().getContextClassLoader()
-                .getResourceAsStream(DEFAULT_CSS_RESOURCE)) {
+                .getResourceAsStream(defaultResource)) {
             if (is == null) {
-                throw new IOException("Default CSS resource not found: " + DEFAULT_CSS_RESOURCE);
+                return null;
             }
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
         }
@@ -163,7 +184,7 @@ public class SlideshowService {
                         width: 1280,
                         height: 800,
                         margin: 0.04,
-                        plugins: [RevealHighlight, RevealMarkdown, RevealNotes]
+                        plugins: [RevealMarkdown, RevealHighlight, RevealNotes]
                     });
                 </script>
                 </body>

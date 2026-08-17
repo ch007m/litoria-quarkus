@@ -169,79 +169,26 @@ Additional SMTP properties can be overridden if needed:
 
 ## Commands
 
-### init
-
-Create a project with template source files:
-
 ```shell
-litoria init /path/to/project
-litoria init -t report /path/to/project
-litoria init -t report -e asciidoctor /path/to/project
+litoria init -t report /path/to/project        # create a report project
+litoria init -t slideshow /path/to/slides       # create a slideshow project
+litoria generate /path/to/project               # generate HTML
+litoria generate -r pdf --embed /path/to/project # generate embedded PDF
+litoria generate -r revealjs /path/to/slides    # generate RevealJS slides
+litoria generate --embed /path/to/project       # self-contained HTML for email
+litoria send /path/to/project                   # send report via email
 ```
 
-Several project types are supported via the `-t` option (default: `simple`):
+For the full command reference (options, defaults, arguments), see [docs/commands.md](docs/commands.md).
 
-* **simple** — a simple adoc example
-* **report** — a **report** template (Markdown by default, or adoc with `-e asciidoctor`)
-* **slideshow** — RevealJS slideshow project *(not yet supported)*
+For RevealJS slideshow documentation, see [docs/slideshow.md](docs/slideshow.md) and [docs/slideshow-tokens.md](docs/slideshow-tokens.md). Preview the token slideshow live: [docs/slides-tokens.html](https://ch007m.github.io/litoria-quarkus/slides-tokens.html).
 
-The `-e` option selects the template engine (default: `markdown`):
-
-* **markdown** — uses [CommonMark](https://commonmark.org/) to generate HTML
-* **asciidoctor** — uses [AsciidoctorJ](https://github.com/asciidoctor/asciidoctorj) to generate HTML
-
-Use `-f` to force creation in an existing non-empty directory:
+To regenerate the commands documentation after changing command definitions:
 
 ```shell
-litoria init -f /path/to/project
+java -Dquarkus.log.level=OFF -Dquarkus.banner.enabled=false \
+  -jar target/litoria-quarkus-1.0.0-SNAPSHOT-runner.jar --help=md > docs/commands.md
 ```
-
-### generate
-
-Render the source file(s) into HTML. The engine is selected from `litoria.generator.engine` (default: `markdown`). Each run creates a timestamped subfolder under the destination directory (e.g., `generated/2026-08-14_18-04`):
-
-```shell
-litoria generate                      # uses current directory
-litoria generate ./report/quarkus
-```
-
-To override the destination directory (no timestamp subfolder), use `-d`:
-
-```shell
-litoria generate -d ./custom-output
-```
-
-To generate a PDF instead of HTML, use the `-r pdf` option:
-
-```shell
-litoria generate -r pdf
-litoria generate -r pdf --embed ./report/quarkus
-```
-
-The PDF is generated from the intermediate HTML using [openhtmltopdf](https://github.com/nicehash/openhtmltopdf). When combined with `--embed`, images and CSS are inlined before PDF conversion, producing a fully self-contained PDF. Both the HTML and PDF files are written to the output directory.
-
-To embed CSS and images as base64 into self-contained HTML after generation, use the `--embed` (`-e`) flag:
-
-```shell
-litoria generate --embed
-```
-
-The `--embed` option inlines CSS from linked stylesheets and `<style>` blocks into `style` attributes, converts image references to embedded base64 data URIs, and embeds Font Awesome icons (downloading the woff2 font from CDN and encoding it as base64) — producing fully self-contained, email-ready HTML that renders correctly without any network access.
-
-### send
-
-Send the generated HTML content as an email via SMTP:
-
-```shell
-litoria send ./report/quarkus
-litoria send -f minute ./report/quarkus
-```
-
-Use `-f` / `--file` to specify which HTML file to send (without the `.html` extension). Defaults to `report`.
-
-The `send` command automatically finds the latest timestamped subfolder and looks for the specified HTML file to use as the email body. Run `generate --embed` before sending.
-
-SMTP credentials must be configured via environment variables (see [SMTP configuration](#smtp-configuration-environment-variables) above). The sender address, recipient, subject, and signature are read from the markdown frontmatter.
 
 ## Running in dev mode
 
@@ -283,3 +230,4 @@ For more on native executables, see the [Quarkus Maven tooling guide](https://qu
 | Quarkus Mailer (SMTP)            | https://quarkus.io/guides/mailer                           |
 | YAML frontmatter (SnakeYAML)     | https://github.com/snakeyaml/snakeyaml                     |
 | PDF generation (openhtmltopdf)   | https://github.com/nicehash/openhtmltopdf                  |
+| RevealJS (HTML slideshows)       | https://revealjs.com/                                      |

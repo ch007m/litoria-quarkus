@@ -24,7 +24,7 @@ import io.litoria.service.MarkdownService;
 import io.litoria.service.PdfService;
 import io.litoria.service.SlideshowService;
 
-@CommandDefinition(name = "generate", description = "Generate the (embedded) HTML")
+@CommandDefinition(name = "generate", description = "Generate HTML, PDF, or RevealJS slideshow from source files")
 public class GenerateCommand implements Command<CommandInvocation> {
 
     private static final DateTimeFormatter TIMESTAMP_FORMAT =

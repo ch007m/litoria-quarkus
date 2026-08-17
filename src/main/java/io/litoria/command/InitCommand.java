@@ -27,6 +27,11 @@ public class InitCommand implements Command<CommandInvocation> {
             defaultValue = "markdown")
     private String engine;
 
+    @Option(shortName = 'l', name = "flavor",
+            description = "Slideshow flavor: default or tokens",
+            defaultValue = "default")
+    private String flavor;
+
     @Argument(description = "Project directory path (defaults to current directory)")
     private String projectDir;
 
@@ -46,8 +51,10 @@ public class InitCommand implements Command<CommandInvocation> {
         invocation.println("Type selected: " + projectType.getValue());
         invocation.println("Engine: " + (markdown ? "markdown" : "asciidoctor"));
 
+        boolean useTokens = "tokens".equalsIgnoreCase(flavor);
+
         try {
-            initService.createProject(projectType, force, projectDir, markdown);
+            initService.createProject(projectType, force, projectDir, markdown, useTokens);
             invocation.println("Project " + projectDir + " successfully created.");
             if (projectType == ProjectType.SLIDESHOW) {
                 invocation.println("\nTo generate slides:");
