@@ -37,11 +37,6 @@ public class InitCommand implements Command<CommandInvocation> {
     public CommandResult execute(CommandInvocation invocation) {
         ProjectType projectType = ProjectType.fromString(type);
 
-        if (projectType == ProjectType.SLIDESHOW) {
-            invocation.println("Slideshow project type will be supported in a future release.");
-            return CommandResult.FAILURE;
-        }
-
         if (projectDir == null || projectDir.isBlank()) {
             invocation.println("Project directory path is required. Example: litoria init /tmp/my-project");
             return CommandResult.FAILURE;
@@ -54,6 +49,10 @@ public class InitCommand implements Command<CommandInvocation> {
         try {
             initService.createProject(projectType, force, projectDir, markdown);
             invocation.println("Project " + projectDir + " successfully created.");
+            if (projectType == ProjectType.SLIDESHOW) {
+                invocation.println("\nTo generate slides:");
+                invocation.println("  litoria generate -r revealjs " + projectDir);
+            }
             return CommandResult.SUCCESS;
         } catch (Exception e) {
             invocation.println("Error: " + e.getMessage());

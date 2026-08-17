@@ -22,6 +22,7 @@ import io.litoria.service.AsciidocService;
 import io.litoria.service.EmbedService;
 import io.litoria.service.MarkdownService;
 import io.litoria.service.PdfService;
+import io.litoria.service.SlideshowService;
 
 @CommandDefinition(name = "generate", description = "Generate the (embedded) HTML")
 public class GenerateCommand implements Command<CommandInvocation> {
@@ -30,9 +31,14 @@ public class GenerateCommand implements Command<CommandInvocation> {
             DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm");
 
     @Option(shortName = 'r', name = "rendering",
-            description = "Rendering type: html or pdf",
+            description = "Rendering type: html, pdf, or revealjs",
             defaultValue = "html")
     private String rendering;
+
+    @Option(shortName = 't', name = "theme",
+            description = "RevealJS theme: white, black, beige, blood, dracula, league, moon, night, serif, simple, sky, solarized",
+            defaultValue = "white")
+    private String theme;
 
     @Option(shortName = 'e', name = "embed",
             description = "Embed styles and images into a self-contained HTML after generation",
@@ -61,6 +67,9 @@ public class GenerateCommand implements Command<CommandInvocation> {
     @Inject
     PdfService pdfService;
 
+    @Inject
+    SlideshowService slideshowService;
+
     @Override
     public CommandResult execute(CommandInvocation invocation) {
         try {
@@ -68,21 +77,25 @@ public class GenerateCommand implements Command<CommandInvocation> {
             String resolvedDest = resolveDestination();
 
             boolean isPdf = "pdf".equalsIgnoreCase(rendering);
+            boolean isRevealJs = "revealjs".equalsIgnoreCase(rendering);
 
-            String engine = config.generator().engine();
-            boolean isMarkdown = "markdown".equalsIgnoreCase(engine);
-
-            if (isMarkdown) {
-                invocation.println("Generating HTML from Markdown files...");
-                markdownService.convertToHtml(resolvedDir, resolvedDest);
+            if (isRevealJs) {
+                invocation.println("Generating RevealJS slideshow (theme: " + theme + ")...");
+                slideshowService.convertToHtml(resolvedDir, resolvedDest, theme);
             } else {
-                invocation.println("Generating HTML from AsciiDoc files...");
-                asciidocService.convertToHtml(resolvedDir, resolvedDest);
+                String engine = config.generator().engine();
+                if ("markdown".equalsIgnoreCase(engine)) {
+                    invocation.println("Generating HTML from Markdown files...");
+                    markdownService.convertToHtml(resolvedDir, resolvedDest);
+                } else {
+                    invocation.println("Generating HTML from AsciiDoc files...");
+                    asciidocService.convertToHtml(resolvedDir, resolvedDest);
+                }
             }
 
             Path outputDir = Path.of(resolvedDir, resolvedDest).normalize().toAbsolutePath();
 
-            if (embed) {
+            if (embed && !isRevealJs) {
                 String sourceDir = config.generator().source();
                 String resolvedSourceDir = Path.of(resolvedDir, sourceDir).toString();
                 String resolvedImageDir = config.generator().image()

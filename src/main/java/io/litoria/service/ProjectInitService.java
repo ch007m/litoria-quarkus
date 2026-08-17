@@ -17,10 +17,13 @@ public class ProjectInitService {
     private static final String TEMPLATES_BASE = "templates/";
     private static final String ASCIIDOCTOR_BASE = TEMPLATES_BASE + "asciidoctor/";
     private static final String MARKDOWN_BASE = TEMPLATES_BASE + "markdown/";
+    private static final String SLIDESHOW_BASE = TEMPLATES_BASE + "slideshow/";
     private static final String[] ASCIIDOCTOR_CSS = {"font-awesome.min.css"};
     private static final String[] MARKDOWN_CSS = {"report.css"};
+    private static final String[] SLIDESHOW_CSS = {"slides.css"};
     private static final String[] ASCIIDOCTOR_IMAGES = {"litoria-chloris.jpg"};
     private static final String[] MARKDOWN_IMAGES = {"quarkus-logo.png"};
+    private static final String[] SLIDESHOW_IMAGES = {};
 
     public void createProject(ProjectType type, boolean force, String dir) throws IOException {
         createProject(type, force, dir, false);
@@ -48,7 +51,24 @@ public class ProjectInitService {
         Files.createDirectories(projectDir);
         Files.createDirectories(projectDir.resolve("source"));
 
-        String engineBase = markdown ? MARKDOWN_BASE : ASCIIDOCTOR_BASE;
+        boolean isSlideshow = type == ProjectType.SLIDESHOW;
+        String engineBase;
+        String[] cssFiles;
+        String[] imageFiles;
+
+        if (isSlideshow) {
+            engineBase = SLIDESHOW_BASE;
+            cssFiles = SLIDESHOW_CSS;
+            imageFiles = SLIDESHOW_IMAGES;
+        } else if (markdown) {
+            engineBase = MARKDOWN_BASE;
+            cssFiles = MARKDOWN_CSS;
+            imageFiles = MARKDOWN_IMAGES;
+        } else {
+            engineBase = ASCIIDOCTOR_BASE;
+            cssFiles = ASCIIDOCTOR_CSS;
+            imageFiles = ASCIIDOCTOR_IMAGES;
+        }
 
         List<String> templates = getTemplatesForType(type, markdown);
         for (String template : templates) {
@@ -59,39 +79,31 @@ public class ProjectInitService {
         Files.createDirectories(projectDir.resolve("source/css"));
         Files.createDirectories(projectDir.resolve("source/image"));
 
-        if (markdown) {
-            for (String css : MARKDOWN_CSS) {
-                copyResource(MARKDOWN_BASE + "css/" + css,
-                        projectDir.resolve("source/css/" + css));
-            }
-            for (String image : MARKDOWN_IMAGES) {
-                copyResource(MARKDOWN_BASE + "image/" + image,
-                        projectDir.resolve("source/image/" + image));
-            }
-        } else {
-            for (String css : ASCIIDOCTOR_CSS) {
-                copyResource(ASCIIDOCTOR_BASE + "css/" + css,
-                        projectDir.resolve("source/css/" + css));
-            }
-            for (String image : ASCIIDOCTOR_IMAGES) {
-                copyResource(ASCIIDOCTOR_BASE + "image/" + image,
-                        projectDir.resolve("source/image/" + image));
-            }
+        for (String css : cssFiles) {
+            copyResource(engineBase + "css/" + css,
+                    projectDir.resolve("source/css/" + css));
+        }
+        for (String image : imageFiles) {
+            copyResource(engineBase + "image/" + image,
+                    projectDir.resolve("source/image/" + image));
         }
     }
 
     public List<String> getTemplatesForType(ProjectType type, boolean markdown) {
+        if (type == ProjectType.SLIDESHOW) {
+            return List.of("slides.md");
+        }
         if (markdown) {
             return switch (type) {
                 case SIMPLE -> List.of("simple.adoc");
                 case REPORT -> List.of("report.md");
-                case SLIDESHOW -> List.of("slideshow.adoc");
+                default -> throw new IllegalArgumentException("Unsupported type: " + type);
             };
         }
         return switch (type) {
             case SIMPLE -> List.of("simple.adoc");
             case REPORT -> List.of("minute.adoc", "report.adoc");
-            case SLIDESHOW -> List.of("slideshow.adoc");
+            default -> throw new IllegalArgumentException("Unsupported type: " + type);
         };
     }
 

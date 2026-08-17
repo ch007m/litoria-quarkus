@@ -50,5 +50,6 @@ nb-configuration.xml
 
 # Litoria
 cmd.md
-/report/
+/reports/
 /templates/
+/slides/
