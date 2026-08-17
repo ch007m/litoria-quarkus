@@ -67,7 +67,7 @@ where `<cmd>` corresponds to one of the available commands: `init`, `generate`, 
 
 Configuration comes from three sources (in priority order):
 
-1. **YAML frontmatter** in markdown files — per-report metadata (author, title, email, recipient, subject, signature)
+1. **YAML frontmatter** in Markdown files — per-report metadata (author, title, email, recipient, subject, signature)
 2. **Environment variables** — SMTP credentials and sensitive data
 3. **`application.properties`** — application defaults (generator settings, SMTP host/port, asciidoctor attributes)
 
