@@ -17,16 +17,13 @@ h1 {
     margin-bottom: 24px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 40px;
 }
 
 h1 > img {
-    height: 1.1em;
-    max-height: 1.1em;
+    height: 1.4em;
     width: auto;
     max-width: 160px;
-    vertical-align: middle;
-    margin-right: 8px;
 }
 
 h2 {
@@ -76,13 +73,19 @@ a:hover {
 }
 
 img {
-    max-width: 100%;
+    max-width: 25%;
 }
 
-li > img, li > a > img, li > em > img, li > strong > img {
-    height: 1.2em;
+li > p {
+    display: flex;
+    align-items: center;
+}
+
+li img {
+    height: 1em;
     width: auto;
-    vertical-align: middle;
+    max-width: none;
+    margin-left: 6px;
     margin-right: 4px;
 }
 
@@ -147,4 +150,13 @@ tr:nth-child(even) {
 
 strong {
     color: #36454f;
+}
+
+.litoria-footer {
+    margin-top: 32px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 0.75em;
+    color: #a0aec0;
+    text-align: center;
 }

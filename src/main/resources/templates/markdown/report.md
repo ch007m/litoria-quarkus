@@ -10,8 +10,8 @@ signature: |
   {author}
   {title}
 ---
-
-# ![Quarkus](image/quarkus-logo.png) {author}'s report: {date}
+![Quarkus](image/quarkus-logo.png)
+# {author}'s report: {date}
 
 ## What was done last week ☀️🌞
 

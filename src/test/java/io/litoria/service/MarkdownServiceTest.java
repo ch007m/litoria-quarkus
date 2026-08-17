@@ -48,7 +48,6 @@ class MarkdownServiceTest {
         String html = Files.readString(output);
         assertThat(html).contains("John Doe's report");
         assertThat(html).contains("<title>");
-        assertThat(html).contains("report-card");
         assertThat(html).contains("<li>Item 1</li>");
     }
 

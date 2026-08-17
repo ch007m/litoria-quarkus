@@ -150,6 +150,10 @@ public class MarkdownService {
     }
 
     private String wrapInHtmlDocument(String bodyHtml, String title, String css) {
+        String footer = "";
+        if (config.generator().footer()) {
+            footer = "<footer class=\"litoria-footer\">" + config.generator().footerText() + "</footer>";
+        }
         return """
                 <!DOCTYPE html>
                 <html lang="en">
@@ -162,12 +166,13 @@ public class MarkdownService {
                     </style>
                 </head>
                 <body>
-                <div class="report-card">
+                <div>
                 %s
                 </div>
+                %s
                 </body>
                 </html>
-                """.formatted(title, css, bodyHtml);
+                """.formatted(title, css, bodyHtml, footer);
     }
 
     private String getFileNameWithoutExtension(Path file) {

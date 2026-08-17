@@ -57,8 +57,6 @@ class ProjectInitServiceTest {
         initService.createProject(ProjectType.REPORT, false, projectDir.toString(), true);
 
         assertThat(projectDir.resolve("source/css/report.css")).isRegularFile();
-        assertThat(projectDir.resolve("source/css/report-card.css")).isRegularFile();
-        assertThat(projectDir.resolve("source/css/report-card-2.css")).isRegularFile();
     }
 
     @Test

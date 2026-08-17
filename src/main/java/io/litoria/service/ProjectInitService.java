@@ -17,9 +17,9 @@ public class ProjectInitService {
     private static final String TEMPLATES_BASE = "templates/";
     private static final String ASCIIDOCTOR_BASE = TEMPLATES_BASE + "asciidoctor/";
     private static final String MARKDOWN_BASE = TEMPLATES_BASE + "markdown/";
-    private static final String[] ASCIIDOCTOR_CSS = {"asciidoctor.css", "font-awesome.min.css", "foundation.css"};
-    private static final String[] MARKDOWN_CSS = {"report.css", "report-card.css", "report-card-2.css"};
-    private static final String[] ASCIIDOCTOR_IMAGES = {"litoria-chloris.jpg", "quarkus-logo.png"};
+    private static final String[] ASCIIDOCTOR_CSS = {"font-awesome.min.css"};
+    private static final String[] MARKDOWN_CSS = {"report.css"};
+    private static final String[] ASCIIDOCTOR_IMAGES = {"litoria-chloris.jpg"};
     private static final String[] MARKDOWN_IMAGES = {"quarkus-logo.png"};
 
     public void createProject(ProjectType type, boolean force, String dir) throws IOException {
