@@ -2,6 +2,8 @@
 
 Command Line Tool to manage AsciiDoc and Markdown projects (create, generate HTML content), embed CSS & images, and send reports as email — built on [Quarkus](https://quarkus.io/) with [Aesh](https://quarkus.io/guides/aesh).
 
+> **Note:** The project is named after the frog genus **Litoria**, which includes the Red-Eyed Tree Frog *Litoria chloris* — a species valued for its [medicinal properties](http://www.kaieteurnewsonline.com/2012/06/03/the-red-eyed-tree-frog-litoria-chloris-2/). This project is the Quarkus/Java port of the Node.js [litoria](https://github.com/ch007m/litoria), itself a rewrite of the Ruby [hyla](https://github.com/ch007m/hyla) tool.
+
 |                | Project Info                                        |
 |----------------|-----------------------------------------------------|
 | License:       | Apache-2.0                                          |
@@ -102,7 +104,7 @@ signature: |
 | subject   | Email subject (supports `{author}`, `{date}` placeholders)     |          |
 | signature | Appended after the email body (supports `{author}`, `{title}`)  |          |
 
-Template placeholders (`{author}`, `{title}`, `{email}`, `{date}`) are resolved from the frontmatter values. The `{date}` variable is auto-filled with today's date if not set. Signatures use YAML multi-line syntax (`|`) — newlines are converted to `<br/>` in the email.
+Template placeholders (`{author}`, `{title}`, `{email}`, `{date}`) are resolved from the frontmatter values. The `{date}` variable is autofilled with today's date if not set. Signatures use YAML multi-line syntax (`|`) — newlines are converted to `<br/>` in the email.
 
 For **asciidoctor** projects, report metadata is set via system properties or environment variables (see below).
 
@@ -180,7 +182,7 @@ litoria init -t report -e asciidoctor /path/to/project
 Several project types are supported via the `-t` option (default: `simple`):
 
 * **simple** — a simple adoc example
-* **report** — a **report** template (markdown by default, or adoc with `-e asciidoctor`)
+* **report** — a **report** template (Markdown by default, or adoc with `-e asciidoctor`)
 * **slideshow** — RevealJS slideshow project *(not yet supported)*
 
 The `-e` option selects the template engine (default: `markdown`):
@@ -259,13 +261,6 @@ Or, if you don't have GraalVM installed, build in a container:
 Then run: `./target/litoria-quarkus-1.0.0-SNAPSHOT-runner`
 
 For more on native executables, see the [Quarkus Maven tooling guide](https://quarkus.io/guides/maven-tooling).
-
-## Extra information
-
-> This project is the Quarkus/Java port of the Node.js [litoria](https://github.com/ch007m/litoria) tool,
-> which itself is a refactoring of the Ruby [hyla tool](https://github.com/ch007m/hyla).
-
-The project name corresponds to the frog genus **Litoria** which contains many species like the Red Eye Tree Frog **Litoria Chloris**, valuable for humans due to its [medical capacities](http://www.kaieteurnewsonline.com/2012/06/03/the-red-eyed-tree-frog-litoria-chloris-2/).
 
 ## References
 
