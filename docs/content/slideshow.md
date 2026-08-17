@@ -1,8 +1,14 @@
+---
+title: RevealJS Slideshow Guide
+layout: page
+escape: true
+---
+
 # RevealJS Slideshow Generation
 
 Generate [RevealJS](https://revealjs.com/) slideshows from Markdown using `litoria generate -r revealjs`.
 
-See [slideshow-tokens.md](slideshow-tokens.md) for the full token reference and [slides-tokens.html](slides-tokens.html) for a live preview.
+See [Slideshow Token Reference](slideshow-tokens) for the full token reference and [live preview](/slides-tokens.html) of all tokens.
 
 ## Quick Start
 
@@ -67,7 +73,7 @@ Two templates are available when scaffolding with `litoria init -t slideshow`:
 | Template | Description |
 |---|---|
 | `slides.md` | Plain Markdown without tokens |
-| `slides-tokens.md` | Demonstrates the [token syntax](slideshow-tokens.md) |
+| `slides-tokens.md` | Demonstrates the [token syntax](slideshow-tokens) |
 
 ## CSS Files
 
@@ -93,7 +99,7 @@ Slide Markdown files support a `{token}` shorthand that replaces common HTML/CSS
 
 Complex layouts (grids, cards, stat rows) remain as HTML.
 
-For the full token reference including all parameters, resolution order, and before/after examples, see [slideshow-tokens.md](slideshow-tokens.md).
+For the full token reference including all parameters, resolution order, and before/after examples, see [Slideshow Token Reference](slideshow-tokens).
 
 ## Speaker View
 

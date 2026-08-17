@@ -1,3 +1,8 @@
+---
+title: Command Reference
+layout: page
+---
+
 # LITORIA
 
 ## NAME
