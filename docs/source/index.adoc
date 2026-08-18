@@ -1,0 +1,428 @@
+:icons: font
+:sectanchors: true
+:linkattrs: true
+:toc: left
+:toclevels: 2
+
+= Litoria
+
+image::image/litoria-chloris.jpg[Litoria Chloris,width="100"]
+
+*One tool -- write, generate, present, deliver.*
+
+Litoria is a command-line tool that turns Markdown or AsciiDoc source files into polished HTML pages, PDF documents, RevealJS slideshows, and email-ready reports.
+Scaffold a project, generate output, embed images and styles, and send it -- all from the terminal.
+
+Built on https://quarkus.io/[Quarkus] with https://quarkus.io/guides/aesh[Aesh] for fast startup and native-image readiness.
+
+== What you can do
+
+* *Write* -- scaffold reports, minutes, docs, or slideshows with `litoria init`
+* *Generate* -- produce HTML, PDF, or RevealJS slides with `litoria generate`
+* *Present* -- serve slides locally with speaker view via `litoria serve`
+* *Deliver* -- send embedded HTML reports as email with `litoria send`
+
+NOTE: Named after the frog genus *Litoria* -- the Red-Eyed Tree Frog _Litoria chloris_, valued for its http://www.kaieteurnewsonline.com/2012/06/03/the-red-eyed-tree-frog-litoria-chloris-2/[medicinal properties]. Quarkus/Java port of the Node.js https://github.com/ch007m/litoria[litoria], itself a rewrite of the Ruby https://github.com/ch007m/hyla[hyla].
+
+[cols="1,3",options="header"]
+|===
+| | Project Info
+| Source | https://github.com/ch007m/litoria-quarkus[github.com/ch007m/litoria-quarkus]
+| License | Apache-2.0
+| Issue tracker | https://github.com/ch007m/litoria-quarkus/issues[Issues]
+| JDK | Java >= 21
+|===
+
+== Documentation
+
+* link:commands.html[Command Reference] -- all commands, options, and arguments
+* link:slideshow.html[RevealJS Slideshow Guide] -- generating and serving slideshows
+* link:slideshow-tokens.html[Slideshow Token Reference] -- `\{token}` shorthand syntax
+
+== Installation
+
+Build the project and create an uber-jar:
+
+[source,shell]
+----
+./mvnw package
+----
+
+The application is then runnable using:
+
+[source,shell]
+----
+java -jar target/litoria-quarkus-1.0.0-SNAPSHOT-runner.jar
+----
+
+=== Register with JBang
+
+https://www.jbang.dev/[JBang] can register the uber-jar as a system-wide command so you can run `litoria` from anywhere.
+
+[source,shell]
+----
+./mvnw package
+jbang app install --name litoria target/litoria-quarkus-1.0.0-SNAPSHOT-runner.jar
+----
+
+For the full command reference, see link:commands.html[commands].
+
+== How-To Guides
+
+=== Create, generate, and send a weekly report
+
+Scaffold a report project, fill in your details, generate a self-contained HTML, and email it.
+
+[source,shell]
+----
+litoria init -t report /tmp/my-report
+----
+
+This creates two Markdown templates under `source/`:
+
+* `report.md` -- weekly report with "What was done / Plans for this week" sections
+* `minute.md` -- meeting minutes with topics, asks, and a task table
+
+Edit the YAML frontmatter at the top of each file with your details:
+
+[source,yaml]
+----
+---
+author: Jane Doe
+title: Senior Engineer
+email: jane.doe@example.com
+to: manager@example.com
+subject: "{author}'s weekly report : {date}"
+signature: |
+  Cheers
+  ----
+  {author}
+  {title}
+---
+----
+
+The placeholders `\{author}`, `\{date}`, `\{title}` are resolved automatically during generation.
+
+Generate the embedded HTML and send it:
+
+[source,shell]
+----
+litoria generate --embed /tmp/my-report    <1>
+litoria send /tmp/my-report                <2>
+----
+<1> `--embed` inlines CSS and images so the HTML is self-contained (no broken images in email clients)
+<2> Sends the generated HTML using the SMTP configuration (see <<smtp-configuration>>)
+
+To generate a PDF instead:
+
+[source,shell]
+----
+litoria generate -r pdf --embed /tmp/my-report
+----
+
+=== Generate documentation from AsciiDoc
+
+Use litoria with the `asciidoctor` engine to produce HTML documentation from `.adoc` source files.
+
+[source,shell]
+----
+litoria init -t doc /tmp/my-docs
+----
+
+This scaffolds a project with `source/doc.adoc` -- a sample AsciiDoc document with sections, tables, admonitions, images, and links.
+
+Generate the HTML:
+
+[source,shell]
+----
+litoria generate --engine asciidoctor /tmp/my-docs
+----
+
+Output goes to `generated/<timestamp>/`. To write to a fixed directory (e.g. for publishing):
+
+[source,shell]
+----
+litoria generate --engine asciidoctor -d site /tmp/my-docs
+----
+
+TIP: This is how litoria's own documentation is generated -- see the `docs/` directory.
+
+=== Adding images
+
+Place images in the `source/image/` directory of your project:
+
+----
+my-project/
+  source/
+    report.md         (or doc.adoc)
+    image/
+      logo.png
+      diagram.svg
+    css/
+      ...
+----
+
+Reference them in your source files:
+
+*Markdown:*
+[source,markdown]
+----
+![Company logo](image/logo.png)
+----
+
+*AsciiDoc:*
+[source,asciidoc]
+----
+image::image/logo.png[Company logo,width="200"]
+----
+
+*Slideshow tokens:*
+[source,markdown]
+----
+{img src="image/logo.png" width="80%" center rounded}
+----
+
+Images are automatically copied to the output directory during generation. When using `--embed`, images are Base64-encoded and inlined directly into the HTML.
+
+=== Create a RevealJS slideshow
+
+Litoria generates https://revealjs.com/[RevealJS] slideshows from Markdown source files.
+
+==== Basic slideshow
+
+[source,shell]
+----
+litoria init -t slideshow /tmp/my-slides
+litoria generate -r revealjs /tmp/my-slides
+----
+
+The template `source/slides.md` uses plain Markdown with slide separators:
+
+* `---` separates horizontal slides
+* `--` creates vertical (nested) sub-slides
+* `Note:` marks speaker notes (visible only in speaker view)
+
+[source,markdown]
+----
+---
+title: My Talk
+author: Jane Doe
+---
+
+# {title}
+
+{author} · {date}
+
+Note:
+Welcome everyone.
+
+---
+
+## Slide Two
+
+- Point A
+- Point B
+
+--
+
+### Sub-slide
+
+Extra detail here.
+----
+
+==== Slideshow with token syntax
+
+For richer slides, use the token-enabled template:
+
+[source,shell]
+----
+litoria init -t slideshow -l tokens /tmp/my-slides
+litoria generate -r revealjs /tmp/my-slides
+----
+
+The `-l tokens` flavor adds `source/slides-tokens.md` with the `\{token}` shorthand and the `css/tokens.css` stylesheet. Tokens replace common HTML/CSS patterns:
+
+[source,markdown]
+----
+{brand-bar}
+{supertitle}Conference Name{/supertitle}
+
+# {title}
+
+{subtitle}What this talk covers{/subtitle}
+
+---
+
+## Key takeaway
+
+{blue}Quarkus{/blue} is {green}fast{/green}.
+
+{callout-teal}This is a highlighted callout box.{/callout-teal}
+
+{img src="image/architecture.png" width="80%" center rounded}
+----
+
+See link:slideshow-tokens.html[Slideshow Token Reference] for all available tokens.
+
+==== Themes
+
+Choose a RevealJS theme with `-t`:
+
+[source,shell]
+----
+litoria generate -r revealjs -t dracula /tmp/my-slides
+----
+
+Available themes: `white` (default), `black`, `beige`, `blood`, `dracula`, `league`, `moon`, `night`, `serif`, `simple`, `sky`, `solarized`.
+
+==== Serving slides with speaker view
+
+RevealJS https://revealjs.com/speaker-view/[speaker view] requires HTTP serving (not `file://`). Use `litoria serve`:
+
+[source,shell]
+----
+litoria generate -r revealjs /tmp/my-slides
+litoria serve /tmp/my-slides/generated/2026-08-18_10-30
+----
+
+Open `http://localhost:8080` and press *S* to open the speaker view (current slide, next slide, notes, timer).
+
+Use `-p` to change the port:
+
+[source,shell]
+----
+litoria serve -p 3000 /tmp/my-slides/generated/2026-08-18_10-30
+----
+
+Press `Ctrl+C` to stop the server.
+
+== Configuration
+
+Configuration comes from three sources (in priority order):
+
+. *YAML frontmatter* in Markdown files -- per-report metadata (author, title, email, recipient, subject, signature)
+. *Environment variables* -- SMTP credentials and sensitive data
+. *`application.properties`* -- application defaults (generator settings, SMTP host/port, asciidoctor attributes)
+
+=== Generator properties
+
+[cols="3,1,3",options="header"]
+|===
+| Property | Default | Description
+| `litoria.generator.engine` | `markdown` | Template engine: `markdown` or `asciidoctor`
+| `litoria.generator.source` | `./source` | Source file(s) directory
+| `litoria.generator.destination` | `generated` | Output directory base path
+| `litoria.generator.image` | `$\{source}/image` | Image directory (resolved relative to project dir)
+| `litoria.generator.css` | -- | Custom CSS file path (falls back to built-in)
+| `litoria.generator.footer` | `true` | Enable/disable the HTML footer
+| `litoria.generator.footer-text` | `Generated by litoria` | Footer HTML content
+|===
+
+=== Report properties
+
+[cols="3,1,3",options="header"]
+|===
+| Property | Default | Description
+| `litoria.report.author` | -- | Default author name (overridden by frontmatter)
+| `litoria.report.title` | -- | Default author title (overridden by frontmatter)
+| `litoria.report.email` | -- | Default sender email (overridden by frontmatter)
+| `litoria.report.signature` | `Cheers\n----\n\{author}\n\{title}` | Email signature template
+| `litoria.report.mail.from` | `\{email}` | Sender address (from frontmatter)
+| `litoria.report.mail.to` | -- | Default recipient email
+| `litoria.report.mail.subject` | -- | Default email subject
+|===
+
+=== Asciidoctor properties
+
+[cols="3,1,3",options="header"]
+|===
+| Property | Default | Description
+| `litoria.asciidoctor.attributes.showtitle` | `true` | Show the document title
+| `litoria.asciidoctor.attributes.icons` | `font` | Icon mode: `font` (Font Awesome) or `image`
+| `litoria.asciidoctor.attributes.nofooter` | `yes` | Suppress Asciidoctor's built-in footer
+| `litoria.asciidoctor.attributes.<key>` | -- | Any additional https://docs.asciidoctor.org/asciidoc/latest/attributes/document-attributes-reference/[Asciidoctor attribute]
+| `litoria.asciidoctor.options.doctype` | `article` | Document type: `article`, `book`, `manpage`, `inline`
+| `litoria.asciidoctor.options.safe` | `unsafe` | Safe mode: `unsafe`, `safe`, `server`, `secure`
+|===
+
+[[smtp-configuration]]
+=== SMTP configuration
+
+Litoria sends email through SMTP using the https://quarkus.io/guides/mailer-reference[Quarkus Mailer]. Two authentication methods are supported: username/password and OAuth2.
+
+==== Option 1: Username and password
+
+Set these environment variables before running `litoria send`:
+
+[source,shell]
+----
+export LITORIA_SMTP_HOST=smtp.gmail.com
+export LITORIA_SMTP_PORT=587
+export LITORIA_SMTP_USER=your-email@gmail.com
+export LITORIA_SMTP_PASS=your-app-password       <1>
+----
+<1> For Gmail, use an https://support.google.com/accounts/answer/185833[App Password] (not your Google account password). Go to _Google Account > Security > 2-Step Verification > App passwords_.
+
+These map to https://quarkus.io/guides/mailer-reference[Quarkus Mailer] properties:
+
+[cols="3,1,3",options="header"]
+|===
+| Environment variable | Default | Quarkus property
+| `LITORIA_SMTP_HOST` | `smtp.gmail.com` | `quarkus.mailer.host`
+| `LITORIA_SMTP_PORT` | `587` | `quarkus.mailer.port`
+| `LITORIA_SMTP_USER` | -- | `quarkus.mailer.username`
+| `LITORIA_SMTP_PASS` | -- | `quarkus.mailer.password`
+|===
+
+TIP: `quarkus.mailer.start-tls` is set to `REQUIRED` by default.
+
+==== Option 2: OAuth2 (recommended for Gmail)
+
+OAuth2 is more secure than app passwords -- no stored credentials, tokens can be scoped and revoked.
+
+[source,shell]
+----
+export LITORIA_SMTP_HOST=smtp.gmail.com
+export LITORIA_SMTP_PORT=587
+export LITORIA_SMTP_USER=your-email@gmail.com
+export LITORIA_SMTP_OAUTH2_CLIENT_ID=your-client-id.apps.googleusercontent.com
+export LITORIA_SMTP_OAUTH2_CLIENT_SECRET=your-client-secret
+export LITORIA_SMTP_OAUTH2_REFRESH_TOKEN=your-refresh-token
+----
+
+When all three OAuth2 variables are set, litoria automatically uses OAuth2 instead of password authentication. It exchanges the refresh token for a short-lived access token via `https://oauth2.googleapis.com/token` before each send.
+
+[cols="3,3",options="header"]
+|===
+| Environment variable | Description
+| `LITORIA_SMTP_OAUTH2_CLIENT_ID` | OAuth2 client ID from Google Cloud Console
+| `LITORIA_SMTP_OAUTH2_CLIENT_SECRET` | OAuth2 client secret
+| `LITORIA_SMTP_OAUTH2_REFRESH_TOKEN` | Long-lived refresh token
+|===
+
+===== How to create Gmail OAuth2 credentials
+
+. Go to https://console.cloud.google.com/apis/credentials[Google Cloud Console > APIs & Credentials]
+. Create a new *OAuth 2.0 Client ID* (type: Desktop app)
+. Enable the *Gmail API* in the project
+. Use the https://developers.google.com/oauthplayground/[OAuth 2.0 Playground] to generate a refresh token:
+  ** Set the OAuth2 client ID/secret (gear icon > "Use your own OAuth credentials")
+  ** Authorize the scope `https://mail.google.com/`
+  ** Exchange the authorization code for tokens
+  ** Copy the *refresh token*
+
+For a detailed step-by-step walkthrough, see this https://blog.maciejwalkowiak.com/gmail-oauth2/[Gmail OAuth2 setup guide].
+
+TIP: Store these values in a `.env` file at the project root (already listed in `.gitignore`). Litoria loads it automatically.
+
+== References
+
+[cols="1,2",options="header"]
+|===
+| Library | Link
+| Quarkus framework | https://quarkus.io/
+| Aesh CLI framework | https://quarkus.io/guides/aesh
+| CommonMark (Markdown parser) | https://github.com/commonmark/commonmark-java
+| RevealJS (HTML slideshows) | https://revealjs.com/
+| Asciidoctor | https://docs.asciidoctor.org/
+|===
