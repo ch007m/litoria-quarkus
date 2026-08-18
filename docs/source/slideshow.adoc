@@ -7,7 +7,7 @@
 
 Generate https://revealjs.com/[RevealJS] slideshows from Markdown using `litoria generate -r revealjs`.
 
-See link:slideshow-tokens.html[Slideshow Token Reference] for the full token reference.
+See link:slideshow-tokens.html[Slideshow Token Reference] for the full token reference, or open the link:slides-tokens.html[live token preview] to see them rendered in RevealJS.
 
 == Quick Start
 
@@ -108,7 +108,7 @@ Slide Markdown files support a `\{token}` shorthand that replaces common HTML/CS
 
 Complex layouts (grids, cards, stat rows) remain as HTML.
 
-For the full token reference including all parameters, resolution order, and before/after examples, see link:slideshow-tokens.html[Slideshow Token Reference].
+For the full token reference including all parameters, resolution order, and before/after examples, see link:slideshow-tokens.html[Slideshow Token Reference]. You can also open the link:slides-tokens.html[live token preview] to see the tokens rendered as actual RevealJS slides.
 
 == Speaker View
 

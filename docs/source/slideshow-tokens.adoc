@@ -10,6 +10,8 @@ with concise `\{token}` syntax in Markdown slide files.
 
 *Convention:* token name = CSS class name. If a class exists in `tokens.css`, the token works.
 
+TIP: Open the link:slides-tokens.html[live token preview] to see all tokens rendered as actual RevealJS slides.
+
 == CSS Files
 
 [cols="1,3",options="header"]

@@ -38,6 +38,7 @@ NOTE: Named after the frog genus *Litoria* -- the Red-Eyed Tree Frog _Litoria ch
 * link:commands.html[Command Reference] -- all commands, options, and arguments
 * link:slideshow.html[RevealJS Slideshow Guide] -- generating and serving slideshows
 * link:slideshow-tokens.html[Slideshow Token Reference] -- `\{token}` shorthand syntax
+* link:slides-tokens.html[Token Preview] -- live RevealJS demo of all tokens
 
 == Installation
 
@@ -262,7 +263,7 @@ The `-l tokens` flavor adds `source/slides-tokens.md` with the `\{token}` shorth
 {img src="image/architecture.png" width="80%" center rounded}
 ----
 
-See link:slideshow-tokens.html[Slideshow Token Reference] for all available tokens.
+See link:slideshow-tokens.html[Slideshow Token Reference] for all available tokens, or open the link:slides-tokens.html[live token preview] to see them rendered in RevealJS.
 
 ==== Themes
 
