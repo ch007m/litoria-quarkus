@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -42,9 +43,6 @@ public class AsciidocService {
         }
         attrsMap.put("break", "<br/>");
 
-        config.generator().image().ifPresent(imageDir ->
-                attrsMap.put("imagesdir", Path.of(projectDir, imageDir).toAbsolutePath().toString()));
-
         Attributes attrs = buildAttributes(attrsMap);
         Map<String, String> optionsMap = config.asciidoctor().options();
         String doctype = optionsMap.getOrDefault("doctype", "article");
@@ -66,6 +64,7 @@ public class AsciidocService {
                         asciidoctor.convertFile(adocFile.toFile(), options);
                     }
                 }
+                copyImages(sourcePath, destPath);
             } else if (Files.isRegularFile(sourcePath)) {
                 String outputName = getFileNameWithoutExtension(sourcePath) + ".html";
                 Options options = Options.builder()
@@ -76,6 +75,7 @@ public class AsciidocService {
                         .toFile(new File(outputName))
                         .build();
                 asciidoctor.convertFile(sourcePath.toFile(), options);
+                copyImages(sourcePath.getParent(), destPath);
             } else {
                 throw new IOException("Source not found: " + sourcePath);
             }
@@ -109,6 +109,23 @@ public class AsciidocService {
             case "secure" -> SafeMode.SECURE;
             default -> SafeMode.UNSAFE;
         };
+    }
+
+    private void copyImages(Path sourceDir, Path destDir) throws IOException {
+        Path imageDir = sourceDir.resolve("image");
+        if (!Files.isDirectory(imageDir)) {
+            return;
+        }
+        Path destImageDir = destDir.resolve("image");
+        Files.createDirectories(destImageDir);
+        try (Stream<Path> images = Files.list(imageDir)) {
+            for (Path img : images.toList()) {
+                if (Files.isRegularFile(img)) {
+                    Files.copy(img, destImageDir.resolve(img.getFileName()),
+                            StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+        }
     }
 
     private String getFileNameWithoutExtension(Path file) {

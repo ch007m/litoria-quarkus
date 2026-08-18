@@ -49,6 +49,10 @@ public class GenerateCommand implements Command<CommandInvocation> {
             description = "Custom destination directory (overrides config, no timestamp subfolder)")
     private String dest;
 
+    @Option(name = "engine",
+            description = "Template engine: markdown or asciidoctor (overrides config)")
+    private String engine;
+
     @Argument(description = "Project directory path")
     private String projectDir;
 
@@ -78,13 +82,15 @@ public class GenerateCommand implements Command<CommandInvocation> {
 
             boolean isPdf = "pdf".equalsIgnoreCase(rendering);
             boolean isRevealJs = "revealjs".equalsIgnoreCase(rendering);
+            String resolvedEngine = null;
 
             if (isRevealJs) {
                 invocation.println("Generating RevealJS slideshow (theme: " + theme + ")...");
                 slideshowService.convertToHtml(resolvedDir, resolvedDest, theme);
             } else {
-                String engine = config.generator().engine();
-                if ("markdown".equalsIgnoreCase(engine)) {
+                resolvedEngine = (engine != null && !engine.isBlank())
+                        ? engine : config.generator().engine();
+                if ("markdown".equalsIgnoreCase(resolvedEngine)) {
                     invocation.println("Generating HTML from Markdown files...");
                     markdownService.convertToHtml(resolvedDir, resolvedDest);
                 } else {
@@ -111,7 +117,8 @@ public class GenerateCommand implements Command<CommandInvocation> {
                 convertToPdf(outputDir);
             }
 
-            printSummary(invocation, outputDir, isPdf, isRevealJs);
+            boolean isAsciidoc = "asciidoctor".equalsIgnoreCase(resolvedEngine);
+            printSummary(invocation, outputDir, isPdf, isRevealJs, isAsciidoc);
             return CommandResult.SUCCESS;
         } catch (Exception e) {
             invocation.println("Error: " + e.getMessage());
@@ -172,7 +179,7 @@ public class GenerateCommand implements Command<CommandInvocation> {
         }
     }
 
-    private void printSummary(CommandInvocation invocation, Path outputDir, boolean isPdf, boolean isRevealJs) {
+    private void printSummary(CommandInvocation invocation, Path outputDir, boolean isPdf, boolean isRevealJs, boolean isAsciidoc) {
         String ext = isPdf ? ".pdf" : ".html";
         try (Stream<Path> files = Files.list(outputDir)
                 .filter(p -> p.toString().endsWith(ext))
@@ -181,13 +188,13 @@ public class GenerateCommand implements Command<CommandInvocation> {
             String relativeOutputDir = cwd.relativize(outputDir).toString();
 
             StringBuilder sb = new StringBuilder();
-            sb.append("\nReport generated here: ").append(outputDir);
+            sb.append("\nGenerated here: ").append(outputDir);
             for (Path file : files.toList()) {
                 sb.append("\n  file://").append(file.toAbsolutePath());
             }
             if (isRevealJs) {
                 sb.append("\n\nTo serve with speaker view: litoria serve ").append(relativeOutputDir);
-            } else if (!isPdf) {
+            } else if (!isPdf && !isAsciidoc) {
                 sb.append("\n\nTo send your report: litoria send ").append(relativeOutputDir);
             }
             invocation.println(sb.toString());

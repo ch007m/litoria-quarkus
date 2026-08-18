@@ -56,23 +56,22 @@ public class ProjectInitService {
         Files.createDirectories(projectDir);
         Files.createDirectories(projectDir.resolve("source"));
 
-        boolean isSlideshow = type == ProjectType.SLIDESHOW;
         String engineBase;
         String[] cssFiles;
         String[] imageFiles;
 
-        if (isSlideshow) {
+        if (type == ProjectType.SLIDESHOW) {
             engineBase = SLIDESHOW_BASE;
             cssFiles = useTokens ? SLIDESHOW_CSS_TOKENS : SLIDESHOW_CSS_DEFAULT;
             imageFiles = SLIDESHOW_IMAGES;
-        } else if (markdown) {
-            engineBase = MARKDOWN_BASE;
-            cssFiles = MARKDOWN_CSS;
-            imageFiles = MARKDOWN_IMAGES;
-        } else {
+        } else if (type == ProjectType.DOC) {
             engineBase = ASCIIDOCTOR_BASE;
             cssFiles = ASCIIDOCTOR_CSS;
             imageFiles = ASCIIDOCTOR_IMAGES;
+        } else {
+            engineBase = MARKDOWN_BASE;
+            cssFiles = MARKDOWN_CSS;
+            imageFiles = MARKDOWN_IMAGES;
         }
 
         List<String> templates = getTemplatesForType(type, markdown, useTokens);
@@ -100,16 +99,9 @@ public class ProjectInitService {
                     ? List.of("slides.md", "slides-tokens.md")
                     : List.of("slides.md");
         }
-        if (markdown) {
-            return switch (type) {
-                case SIMPLE -> List.of("simple.adoc");
-                case REPORT -> List.of("report.md");
-                default -> throw new IllegalArgumentException("Unsupported type: " + type);
-            };
-        }
         return switch (type) {
-            case SIMPLE -> List.of("simple.adoc");
-            case REPORT -> List.of("minute.adoc", "report.adoc");
+            case DOC -> List.of("doc.adoc");
+            case REPORT -> List.of("minute.md", "report.md");
             default -> throw new IllegalArgumentException("Unsupported type: " + type);
         };
     }

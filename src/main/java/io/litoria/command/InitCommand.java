@@ -18,8 +18,8 @@ public class InitCommand implements Command<CommandInvocation> {
     @Option(shortName = 'f', description = "Force use of an existing folder", hasValue = false)
     private boolean force;
 
-    @Option(shortName = 't', description = "Type of project: simple, report, slideshow",
-            defaultValue = "simple")
+    @Option(shortName = 't', description = "Type of project: doc, report, slideshow",
+            defaultValue = "doc")
     private String type;
 
     @Option(shortName = 'e', name = "engine",

@@ -23,11 +23,28 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Generate Roq Site
-        uses: quarkiverse/quarkus-roq@v1.1
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
         with:
-          site-directory: docs
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build litoria uber-jar
+        run: ./mvnw package -DskipTests --no-transfer-progress
+
+      - name: Generate docs with litoria
+        run: |
+          java -jar target/litoria-quarkus-1.0.0-SNAPSHOT-runner.jar \
+            generate --engine asciidoctor -d site docs
+
+      - name: Copy static files
+        run: cp docs/slides-tokens.html docs/site/ 2>/dev/null || true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/site
 
   deploy:
     environment:

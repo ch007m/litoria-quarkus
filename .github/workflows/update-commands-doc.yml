@@ -29,7 +29,7 @@ jobs:
       - name: Check for changes
         id: diff
         run: |
-          git diff --quiet docs/content/commands.md || echo "changed=true" >> "$GITHUB_OUTPUT"
+          git diff --quiet docs/source/commands.md || echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Create Pull Request
         if: steps.diff.outputs.changed == 'true'

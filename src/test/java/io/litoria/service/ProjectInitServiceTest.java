@@ -30,6 +30,7 @@ class ProjectInitServiceTest {
         assertThat(projectDir.resolve("source/css")).isDirectory();
         assertThat(projectDir.resolve("source/image")).isDirectory();
         assertThat(projectDir.resolve("source/report.md")).isRegularFile();
+        assertThat(projectDir.resolve("source/minute.md")).isRegularFile();
         assertThat(projectDir.resolve("config.yml")).doesNotExist();
         assertThat(projectDir.resolve("config.yaml")).doesNotExist();
     }
@@ -69,16 +70,15 @@ class ProjectInitServiceTest {
     }
 
     @Test
-    void createAsciidoctorReportProjectCreatesCorrectStructure(@TempDir Path tempDir) throws IOException {
+    void createDocProjectCreatesCorrectStructure(@TempDir Path tempDir) throws IOException {
         Path projectDir = tempDir.resolve("my-adoc");
 
-        initService.createProject(ProjectType.REPORT, false, projectDir.toString(), false);
+        initService.createProject(ProjectType.DOC, false, projectDir.toString());
 
         assertThat(projectDir.resolve("source")).isDirectory();
         assertThat(projectDir.resolve("source/css")).isDirectory();
         assertThat(projectDir.resolve("source/image")).isDirectory();
-        assertThat(projectDir.resolve("source/report.adoc")).isRegularFile();
-        assertThat(projectDir.resolve("source/minute.adoc")).isRegularFile();
+        assertThat(projectDir.resolve("source/doc.adoc")).isRegularFile();
         assertThat(projectDir.resolve("config.yml")).doesNotExist();
     }
 

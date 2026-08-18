@@ -1,7 +1,7 @@
 package io.litoria.model;
 
 public enum ProjectType {
-    SIMPLE("simple"),
+    DOC("doc"),
     REPORT("report"),
     SLIDESHOW("slideshow");
 
@@ -21,6 +21,6 @@ public enum ProjectType {
                 return pt;
             }
         }
-        return SIMPLE;
+        return DOC;
     }
 }
