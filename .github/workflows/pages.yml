@@ -39,7 +39,7 @@ jobs:
             generate --engine asciidoctor -d site docs
 
       - name: Copy static files
-        run: cp docs/slides-tokens.html docs/site/ 2>/dev/null || true
+        run: cp docs/source/references/slides-tokens.html docs/site/ 2>/dev/null || true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

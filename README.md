@@ -56,4 +56,4 @@ litoria serve /tmp/my-slides/generated/...
 - [Command Reference](docs/source/commands.adoc) — all commands, options, and arguments
 - [RevealJS Slideshow Guide](docs/source/slideshow.adoc) — generating and serving slideshows
 - [Slideshow Token Reference](docs/source/slideshow-tokens.adoc) — `{token}` shorthand syntax
-- [Token Preview](docs/slides-tokens.html) — live RevealJS demo of all tokens
+- [Token Preview](docs/source/references/slides-tokens.html) — live RevealJS demo of all tokens
